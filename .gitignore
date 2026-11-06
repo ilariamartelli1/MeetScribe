@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.token
+
+# Local meeting data and model artifacts
+/data/
+/recordings/
+/uploads/
+/models/
+/ollama/
+.cache/
+*.db
+*.sqlite
+*.sqlite3
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# IDE settings
+.idea/
+.vscode/
