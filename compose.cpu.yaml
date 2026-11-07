@@ -1,0 +1,5 @@
+services:
+  app:
+    environment:
+      MEETSCRIBE_DEVICE: cpu
+    gpus: !reset null
