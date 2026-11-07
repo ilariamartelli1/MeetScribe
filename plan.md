@@ -26,7 +26,7 @@ The first usable release is deliberately smaller: a localhost browser page uploa
 
 ## Sprint 0 - Runnable shell and ASR feasibility
 
-**0.1 Minimal application.** Create the Python package, a FastAPI health endpoint, minimal configuration, a small test suite, formatting/type-check commands, and pinned Python dependencies. Add the actual local run/test commands to README. *Check:* tests pass and the health endpoint responds; no model download is needed yet.
+**0.1 Minimal application (implemented; awaiting review).** Create the Python package, a FastAPI health endpoint, minimal configuration, a small test suite, formatting/type-check commands, and pinned Python dependencies. Add the actual local run/test commands to README. *Check:* tests pass and the health endpoint responds; no model download is needed yet.
 
 **0.2 Local container.** Dockerize that application for Linux; make GPU mode an explicit preflight and CPU test mode explicit, publish only on host loopback, and avoid baked-in weights/secrets. Verify the Linux host driver and NVIDIA Container Toolkit expose the GPU inside the container, without assuming that this proves CUDA inference works. *Check:* container smoke test for the health endpoint and GPU visibility; verify host access and no LAN binding.
 
