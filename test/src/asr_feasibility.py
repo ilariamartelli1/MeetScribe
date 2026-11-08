@@ -1,3 +1,5 @@
+"""Measure offline GPU transcription feasibility and resource usage."""
+
 import argparse
 import gc
 import hashlib

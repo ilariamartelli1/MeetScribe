@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. An opt-in offline GPU transcription feasibility check has passed; there is no transcription API or browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service and faster-whisper adapter are available for local use; there is no transcription API or browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -91,17 +91,16 @@ The model card identifies the converted model as MIT-licensed. Its pinned `model
 
 The repository includes a short synthetic English sample in WAV and MP3 at `test/data/asr/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
 
-After provisioning the model above, build the image and run the opt-in check:
+After provisioning the model above, run the opt-in check:
 
 ```sh
-docker compose build
 MEETSCRIBE_ASR_TESTS=1 \
   uv run --locked python -m pytest -q -s test/integration/test_asr_gpu_feasibility.py
 ```
 
 The test defaults to the provisioned model path and versioned fixtures. To use different local paths, set `MEETSCRIBE_MODEL_DIR`, `MEETSCRIBE_TEST_WAV`, or `MEETSCRIBE_TEST_MP3` to absolute paths. Use only synthetic or explicitly authorized non-sensitive audio; never commit meeting recordings. The container runs as a non-root user and must be able to read the mounted files.
 
-The test starts the actual app image with a disabled network and read-only mounts for the test tooling in `test/src/`, the model and the audio. The tooling is not included in the image. It explicitly requests CUDA `int8_float16` and runs two jobs that each load the model, decode and transcribe both formats, then unload it. It reports timings and memory without printing transcript text. GPU memory is summed across visible GPUs and includes other processes; host usage is estimated from `/proc/meminfo`, while container usage comes from cgroup v2. Peaks are sampled approximately every 0.2 seconds, so brief spikes may be missed. The test requires an NVIDIA GPU and Linux cgroup v2, and does not establish transcription quality or long-recording capacity.
+ASR integration tests automatically build the app image once per pytest session, including when started from CLion. The build can require network access if dependencies are not cached. Inference runs with a disabled network and read-only mounts for the test tooling in `test/src/`, the model and the audio. The tooling is not included in the image. The feasibility test explicitly requests CUDA `int8_float16` and runs two jobs that each load the model, decode and transcribe both formats, then unload it. It reports timings and memory without printing transcript text. GPU memory is summed across visible GPUs and includes other processes; host usage is estimated from `/proc/meminfo`, while container usage comes from cgroup v2. Peaks are sampled approximately every 0.2 seconds, so brief spikes may be missed. The test requires an NVIDIA GPU and Linux cgroup v2, and does not establish transcription quality or long-recording capacity.
 
 Run a separate offline correctness check against the versioned WAV and MP3:
 
@@ -110,6 +109,20 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q test/integration/test
 ```
 
 This compares each transcript with the known sentence, ignoring capitalization, punctuation and whitespace. On a mismatch it reports the expected and actual text. It always uses the versioned synthetic audio, though `MEETSCRIBE_MODEL_DIR` can select a different local copy of the pinned model. Passing one synthetic sentence does not establish overall transcription quality.
+
+## Timestamped transcription contract
+
+`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It checks the weights SHA-256, requires an explicit `cuda` or `cpu` device and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+
+The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s test/integration/test_asr_adapter.py
+```
+
+The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in `test/data/asr/` are synthetic eSpeak NG 1.51 speech, with the negation utterances at 30% amplitude and long silent gaps. The English reference is "No. We do not approve." and the Italian reference is "No. Non siamo pronti." Annotated source intervals are `no` 3000–3321 ms and `not` 6647–6940 ms for English; `no` 3000–3265 ms and `non` 5965–6333 ms for Italian. The test checks each expected negation appears in a segment overlapping its source interval, and checks silence is rejected. Segment overlap does not establish word-level timing accuracy.
+
+On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and "No. Non siamo pronti." with no missed reference negations; silence was rejected. This small synthetic sample is not a quality benchmark, and quiet speech can still be missed in real recordings. Use only synthetic or explicitly authorized non-sensitive audio.
 
 ### Measured development-host result
 
