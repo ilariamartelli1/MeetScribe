@@ -3,15 +3,19 @@ FROM python:3.12.3-slim-bookworm@sha256:afc139a0a640942491ec481ad8dda10f2c5b753f
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_NO_MANAGED_PYTHON=1
+    UV_NO_MANAGED_PYTHON=1 \
+    HF_HUB_OFFLINE=1 \
+    HF_HUB_DISABLE_TELEMETRY=1
 
 WORKDIR /app
 COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --group cuda --no-install-project
 COPY app ./app
 
-ENV PATH="/app/.venv/bin:${PATH}"
+ENV PATH="/app/.venv/bin:${PATH}" \
+    LD_LIBRARY_PATH="/app/.venv/lib/python3.12/site-packages/nvidia/cublas/lib:/app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:/app/.venv/lib/python3.12/site-packages/nvidia/cuda_nvrtc/lib"
 USER 65532:65532
 EXPOSE 8000
 CMD ["python", "-m", "app.container_start"]
