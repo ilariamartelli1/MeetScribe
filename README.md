@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service and faster-whisper adapter are available for local use; there is no transcription API or browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service, faster-whisper adapter, and temporary job coordinator are available for local use; there is no transcription API or browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -124,7 +124,21 @@ The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in 
 
 On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and "No. Non siamo pronti." with no missed reference negations; silence was rejected. This small synthetic sample is not a quality benchmark, and quiet speech can still be missed in real recordings. Use only synthetic or explicitly authorized non-sensitive audio.
 
-### Measured development-host result
+## Temporary transcription jobs
+
+`TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. `FasterWhisperJob` constructs and unloads the model in that child. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
+
+When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The caller can ask for confirmation and retry with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. No confirmation UI exists yet. The limit bounds the number of retained results, not their individual size.
+
+Call `shutdown()` when finished: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results. This slice does not yet provide job cancellation, HTTP endpoints, or temporary-audio cleanup; those are planned for later slices. The coordinator is synchronous and must not be called directly from an async event loop.
+
+The optional offline GPU integration test runs the actual adapter through the spawned child in the app image:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q test/integration/test_transcription_jobs.py
+```
+
+## Measured development-host result
 
 On November 7, 2026, the offline check passed with a 3.531-second synthetic speech sample in both formats on Linux Mint 22.1, an RTX 4050 Laptop GPU (6,141 MiB), NVIDIA driver 580.159.03, NVIDIA Container Toolkit 1.20.1, Docker 29.6.1 and Compose 5.3.0. The image used Python 3.12.3, the dependency versions above, CUDA NVRTC 12.9.86, ONNX Runtime 1.31.1 and PyAV's bundled FFmpeg libraries (`libavcodec` 62.28.102, `libavformat` 62.12.102, `libavutil` 60.26.102). The pinned base image and uv image digests are in the Dockerfile; the tested local app image ID was `sha256:ac03ea7d3edaf1aa384443f91641829276f82c5a5589cc742438e41733d9d513`. Host drivers and toolkit are observed prerequisites, not managed by the image.
 
