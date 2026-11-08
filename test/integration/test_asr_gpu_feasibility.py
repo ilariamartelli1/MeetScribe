@@ -1,3 +1,8 @@
+"""Verify repeated offline GPU inference and report feasibility measurements.
+
+Requires MEETSCRIBE_ASR_TESTS=1, a provisioned model, Docker, and an NVIDIA GPU.
+"""
+
 import json
 import os
 import subprocess

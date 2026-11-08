@@ -1,3 +1,8 @@
+"""Verify the CPU container health endpoint and loopback-only port binding.
+
+Requires MEETSCRIBE_DOCKER_TESTS=1 and Docker.
+"""
+
 import json
 import os
 import socket

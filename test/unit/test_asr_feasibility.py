@@ -1,3 +1,8 @@
+"""Verify ASR feasibility validation, memory sampling, and model lifecycle.
+
+Most tests use fakes; the audio decoder test uses generated WAV and MP3 files.
+"""
+
 import hashlib
 import math
 import struct

@@ -1,3 +1,8 @@
+"""Compare offline GPU transcripts of synthetic WAV and MP3 with known text.
+
+Requires MEETSCRIBE_ASR_TESTS=1, a provisioned model, Docker, and an NVIDIA GPU.
+"""
+
 import json
 import os
 import subprocess

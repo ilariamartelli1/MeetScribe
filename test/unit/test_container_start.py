@@ -1,3 +1,5 @@
+"""Verify device preflight, startup errors, and container server launch."""
+
 import subprocess
 from unittest.mock import Mock
 

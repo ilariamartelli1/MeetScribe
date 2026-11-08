@@ -1,3 +1,5 @@
+"""Verify default application settings and their immutability."""
+
 from dataclasses import FrozenInstanceError
 
 import pytest

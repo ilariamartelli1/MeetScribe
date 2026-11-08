@@ -1,3 +1,5 @@
+"""Verify integration test path selection and transcript normalization."""
+
 from pathlib import Path
 
 import pytest
