@@ -1,6 +1,7 @@
 """Verify repeated offline GPU inference and report feasibility measurements.
 
 Requires MEETSCRIBE_ASR_TESTS=1, a provisioned model, Docker, and an NVIDIA GPU.
+Uses the session-scoped ASR image fixture from conftest.py.
 """
 
 import json
@@ -29,7 +30,7 @@ def integration_paths() -> dict[str, Path]:
     os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
     reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
 )
-def test_offline_gpu_inference() -> None:
+def test_offline_gpu_inference(asr_image: str) -> None:
     paths = integration_paths()
 
     result = subprocess.run(
@@ -51,7 +52,7 @@ def test_offline_gpu_inference() -> None:
             f"type=bind,src={paths['MEETSCRIBE_TEST_MP3']},dst=/audio/sample.mp3,readonly",
             "--entrypoint",
             "python",
-            "meetscribe-app",
+            asr_image,
             "/checks/asr_feasibility.py",
             "--model-dir",
             "/model",

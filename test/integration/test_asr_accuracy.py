@@ -1,6 +1,7 @@
 """Compare offline GPU transcripts of synthetic WAV and MP3 with known text.
 
 Requires MEETSCRIBE_ASR_TESTS=1, a provisioned model, Docker, and an NVIDIA GPU.
+Uses the session-scoped ASR image fixture from conftest.py.
 """
 
 import json
@@ -50,7 +51,7 @@ def normalize_text(text: str) -> str:
     os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
     reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
 )
-def test_synthetic_speech_transcription() -> None:
+def test_synthetic_speech_transcription(asr_image: str) -> None:
     model_dir = Path(
         os.environ.get(
             "MEETSCRIBE_MODEL_DIR",
@@ -77,7 +78,7 @@ def test_synthetic_speech_transcription() -> None:
             f"type=bind,src={sample_dir},dst=/audio,readonly",
             "--entrypoint",
             "python",
-            "meetscribe-app",
+            asr_image,
             "-c",
             TRANSCRIBE_SCRIPT,
         ],
