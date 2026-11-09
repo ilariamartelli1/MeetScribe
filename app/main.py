@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal, ParamSpec, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.config import Settings
@@ -35,6 +35,13 @@ settings = Settings()
 logger = logging.getLogger(__name__)
 P = ParamSpec("P")
 T = TypeVar("T")
+WEB_DIR = Path(__file__).resolve().parent / "web"
+WEB_PATHS = {"/", "/static/app.js", "/static/styles.css"}
+CSP = (
+    "default-src 'none'; script-src 'self'; style-src 'self'; "
+    "connect-src 'self'; base-uri 'none'; form-action 'self'; "
+    "frame-ancestors 'none'; object-src 'none'"
+)
 
 
 async def run_until_finished(
@@ -91,6 +98,14 @@ async def protect_job_requests(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
     jobs_path = f"{settings.api_prefix}/jobs"
+    if request.url.path in WEB_PATHS:
+        if request.url.hostname not in ("localhost", "127.0.0.1", "::1"):
+            return Response(status_code=403, headers={"Cache-Control": "no-store"})
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = CSP
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
     if request.url.path == jobs_path or request.url.path.startswith(f"{jobs_path}/"):
         origin = request.headers.get("origin")
         if (
@@ -110,6 +125,21 @@ async def protect_job_requests(
         response.headers["Cache-Control"] = "no-store"
         return response
     return await call_next(request)
+
+
+@app.get("/", include_in_schema=False)
+def browser_page() -> FileResponse:
+    return FileResponse(WEB_DIR / "index.html")
+
+
+@app.get("/static/app.js", include_in_schema=False)
+def browser_script() -> FileResponse:
+    return FileResponse(WEB_DIR / "app.js", media_type="text/javascript")
+
+
+@app.get("/static/styles.css", include_in_schema=False)
+def browser_styles() -> FileResponse:
+    return FileResponse(WEB_DIR / "styles.css", media_type="text/css")
 
 
 @app.get(f"{settings.api_prefix}/health")

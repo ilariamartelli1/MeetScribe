@@ -1,0 +1,55 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #17212b;
+  background: #f3f6f8;
+}
+
+main {
+  max-width: 52rem;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.5rem;
+}
+
+.notice {
+  padding: 0.8rem;
+  border-left: 0.3rem solid #946600;
+  background: #fff6db;
+}
+
+form, #segments {
+  display: grid;
+  gap: 0.6rem;
+}
+
+input, select, textarea, button {
+  font: inherit;
+}
+
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 5rem;
+}
+
+button {
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+#error {
+  color: #9c1b18;
+}

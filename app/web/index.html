@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MeetScribe</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>MeetScribe</h1>
+    <p>Transcribe a short recording locally and review the draft.</p>
+    <p class="notice">Use only synthetic or explicitly authorized, non-sensitive recordings. Speaker labels do not anonymize a recording.</p>
+    <p>Mono WAV or MP3 only, up to 5 minutes and 100 MB. Results are temporary; edits are lost on refresh or restart.</p>
+
+    <form id="upload-form">
+      <label for="audio">Recording</label>
+      <input id="audio" name="file" type="file" accept=".wav,.mp3,audio/wav,audio/mpeg" required>
+      <label for="language">Recording language</label>
+      <select id="language" name="language">
+        <option value="en">English</option>
+        <option value="it">Italian</option>
+      </select>
+      <div class="actions">
+        <button id="submit" type="submit">Transcribe</button>
+        <button id="cancel" type="button" disabled>Cancel job</button>
+      </div>
+    </form>
+
+    <p id="status" role="status" aria-live="polite">Ready.</p>
+    <p id="error" role="alert" hidden></p>
+
+    <section id="transcript" hidden aria-labelledby="transcript-title">
+      <h2 id="transcript-title">Draft transcript - unreviewed</h2>
+      <p>Review and correct the text before downloading. Edits are not saved.</p>
+      <div id="segments"></div>
+      <button id="download" type="button">Download draft TXT</button>
+    </section>
+  </main>
+</body>
+</html>

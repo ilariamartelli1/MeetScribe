@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. Its local API accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs. There is no browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, edit transcripts, and download an unreviewed draft. The first-release checkpoint is not yet complete. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -33,6 +33,17 @@ Unit tests live in `test/unit/`; Docker and GPU integration tests live in
 `test/integration/` and are opt-in. The CLion **Unit Tests** configuration can
 target `test/unit`, and **Integration Test** can target `test/integration` with
 `MEETSCRIBE_ASR_TESTS=1` and `MEETSCRIBE_DOCKER_TESTS=1`.
+
+The browser integration tests use Playwright with fake inference. Install Chromium
+with `uv run --locked python -m playwright install chromium` if no supported browser
+is available, then run:
+
+```sh
+MEETSCRIBE_BROWSER_TESTS=1 uv run --locked python -m pytest -q test/integration/test_browser_flow.py
+```
+
+Tests use `google-chrome` on PATH when available, otherwise Playwright's installed
+Chromium. Set `MEETSCRIBE_CHROME_PATH` to select another Chromium executable.
 
 ## Docker
 
@@ -72,6 +83,15 @@ Both configurations publish the app on `127.0.0.1:8000`, not a LAN interface. Se
 ```sh
 MEETSCRIBE_DOCKER_TESTS=1 uv run --locked python -m pytest -q test/integration/test_docker.py
 ```
+
+After starting the GPU configuration, open `http://127.0.0.1:8000/` in a browser.
+Select a mono WAV or MP3 (up to five minutes and 100 MB), choose its language,
+and transcribe. Review and edit the timestamped draft before downloading it as
+TXT. Cancel stops an active job; if the 16-result limit is reached, the page
+asks before replacing the oldest result. Results are temporary, and edits are
+lost on refresh or restart. Downloads are stored by the browser and are not
+deleted by the application. Use only synthetic or explicitly authorized,
+non-sensitive recordings.
 
 ## GPU transcription feasibility
 
@@ -128,7 +148,7 @@ On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and
 
 `TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. `FasterWhisperJob` constructs and unloads the model in that child. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
 
-When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The caller can ask for confirmation and retry with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. No confirmation UI exists yet. The limit bounds the number of retained results, not their individual size.
+When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The browser asks for confirmation and retries with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. The limit bounds the number of retained results, not their individual size.
 
 Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelling` to `cancelled` only after the child exits and managed audio is removed; a late result is discarded, and the slot remains busy until cancellation finishes. Repeated cancellation is safe, while finished and unknown jobs are reported explicitly. If stopping the worker fails, the error is surfaced and cancellation can be retried. Direct coordinator callers retain ownership of their audio unless they explicitly transfer it with `cleanup_audio=True`.
 
@@ -150,7 +170,7 @@ The response contains a `job_id` for the status endpoint. If capacity is full, t
 
 Generated audio is removed on rejection and after worker completion, failure, cancellation or orderly shutdown, before another job can start. If cleanup or decoder termination fails, the app reports the failure and blocks further uploads or jobs as appropriate until shutdown can retry. A sudden process or host crash can leave temporary files in the system temporary directory; orderly deletion cannot guarantee physical erasure or remove filesystem backups.
 
-Call `shutdown()` when using the coordinator directly: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results. The browser cancel control is planned for slice 1.4.
+Call `shutdown()` when using the coordinator directly: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results.
 
 The optional offline GPU integration test runs the actual adapter through the spawned child in the app image:
 
