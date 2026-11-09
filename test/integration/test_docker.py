@@ -1,4 +1,4 @@
-"""Verify the CPU container health endpoint and loopback-only port binding.
+"""Verify the CPU container health, upload boundary, and loopback-only binding.
 
 Requires MEETSCRIBE_DOCKER_TESTS=1 and Docker.
 """
@@ -68,6 +68,26 @@ def test_cpu_container_is_healthy_and_bound_to_loopback() -> None:
             timeout=10,
         )
         assert binding.stdout.strip() == f"127.0.0.1:{port}"
+
+        body = (
+            b'--test-boundary\r\nContent-Disposition: form-data; name="file"; '
+            b'filename="invalid.wav"\r\n\r\nnot audio\r\n--test-boundary--\r\n'
+        )
+        url = f"http://127.0.0.1:{port}/api/v1/jobs"
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers={
+                "Content-Type": "multipart/form-data; boundary=test-boundary",
+                "Origin": f"http://127.0.0.1:{port}",
+            },
+            method="POST",
+        )
+        with pytest.raises(urllib.error.HTTPError) as invalid:
+            urllib.request.urlopen(request, timeout=30)
+        assert invalid.value.code == 422
+        assert invalid.value.headers["Cache-Control"] == "no-store"
+        assert "corrupt" in json.load(invalid.value)["detail"]
     finally:
         subprocess.run(
             [*compose, "down", "--remove-orphans", "--rmi", "local"],

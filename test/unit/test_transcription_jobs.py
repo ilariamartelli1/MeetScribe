@@ -157,6 +157,45 @@ def test_failed_termination_can_be_retried(tmp_path: Path) -> None:
         coordinator.shutdown()
 
 
+def test_cleanup_failure_blocks_new_jobs_and_shutdown_retries(tmp_path: Path) -> None:
+    coordinator = TranscriptionCoordinator(FakeJob(tmp_path))
+    audio = tmp_path / "managed.wav"
+    audio.touch()
+    unlink = Path.unlink
+
+    def fail_managed(path: Path, missing_ok: bool = False) -> None:
+        if path == audio:
+            raise OSError("Cannot delete audio")
+        unlink(path, missing_ok=missing_ok)
+
+    try:
+        with patch.object(Path, "unlink", autospec=True, side_effect=fail_managed):
+            job_id = coordinator.submit(audio, cleanup_audio=True)
+            wait_for(lambda: coordinator.get(job_id).state == "failed")
+            error = coordinator.get(job_id).error
+            assert error is not None and error.kind == "AudioCleanupError"
+            assert audio.exists()
+            with pytest.raises(JobBusyError):
+                coordinator.submit(Path("another.wav"))
+        coordinator.shutdown()
+        assert not audio.exists()
+    finally:
+        coordinator.shutdown()
+
+
+def test_rejected_managed_submission_removes_audio(tmp_path: Path) -> None:
+    coordinator = TranscriptionCoordinator(FakeJob(tmp_path, "wait"))
+    audio = tmp_path / "rejected.wav"
+    audio.touch()
+    try:
+        coordinator.submit(Path("running.wav"))
+        with pytest.raises(JobBusyError):
+            coordinator.submit(audio, cleanup_audio=True)
+        assert not audio.exists()
+    finally:
+        coordinator.shutdown()
+
+
 @pytest.mark.parametrize(
     ("mode", "kind", "message"),
     [

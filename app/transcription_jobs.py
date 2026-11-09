@@ -1,5 +1,6 @@
 import math
 import multiprocessing
+import logging
 import threading
 import time
 import uuid
@@ -14,6 +15,7 @@ from app.asr_contract import Language, Transcript
 
 JobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
 TranscriptionJob = Callable[[Path, Language], Transcript]
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,7 @@ class TranscriptionCoordinator:
         self._shutdown_lock = threading.Lock()
         self._records: dict[str, _Record] = {}
         self._active: tuple[BaseProcess, threading.Thread | None] | None = None
+        self._managed_audio: Path | None = None
         self._cancel_in_progress = False
         self._closed = False
         self._expiry_thread = threading.Thread(target=self._expire_loop, daemon=True)
@@ -119,6 +122,26 @@ class TranscriptionCoordinator:
         language: Language = "en",
         *,
         replace_oldest_job_id: str | None = None,
+        cleanup_audio: bool = False,
+    ) -> str:
+        try:
+            return self._submit(
+                audio_path, language, replace_oldest_job_id, cleanup_audio
+            )
+        except BaseException:
+            if cleanup_audio:
+                with self._lock:
+                    managed = self._managed_audio == audio_path
+                if not managed:
+                    audio_path.unlink(missing_ok=True)
+            raise
+
+    def _submit(
+        self,
+        audio_path: Path,
+        language: Language,
+        replace_oldest_job_id: str | None,
+        cleanup_audio: bool,
     ) -> str:
         if language not in ("en", "it"):
             raise ValueError("Recording language must be 'en' or 'it'.")
@@ -126,7 +149,11 @@ class TranscriptionCoordinator:
             if self._closed:
                 raise CoordinatorClosedError("The transcription coordinator is closed.")
             self._expire_results()
-            if self._active is not None or self._cancel_in_progress:
+            if (
+                self._active is not None
+                or self._cancel_in_progress
+                or self._managed_audio is not None
+            ):
                 raise JobBusyError("A transcription job is already running.")
             oldest_id = next(iter(self._records), None)
             if (
@@ -148,6 +175,8 @@ class TranscriptionCoordinator:
                 sender.close()
                 raise
             sender.close()
+            if cleanup_audio:
+                self._managed_audio = audio_path
             self._records[job_id] = _Record(JobSnapshot(job_id, "running"))
             monitor = threading.Thread(
                 target=self._monitor, args=(job_id, process, receiver), daemon=True
@@ -167,6 +196,9 @@ class TranscriptionCoordinator:
                         process.join(self._shutdown_timeout)
                     if process.is_alive():
                         raise RuntimeError("The transcription worker did not stop.")
+                    if self._managed_audio is not None:
+                        self._managed_audio.unlink(missing_ok=True)
+                        self._managed_audio = None
                 except BaseException:
                     self._closed = True
                     self._changed.notify_all()
@@ -185,6 +217,10 @@ class TranscriptionCoordinator:
             if record is None:
                 raise JobNotFoundError(f"Unknown or expired job: {job_id}")
             return record.snapshot
+
+    def manages_audio(self, audio_path: Path) -> bool:
+        with self._lock:
+            return self._managed_audio == audio_path
 
     def cancel(self, job_id: str) -> JobSnapshot:
         with self._lock:
@@ -231,7 +267,13 @@ class TranscriptionCoordinator:
                             monitor.join(self._shutdown_timeout)
                         if monitor.is_alive():
                             raise RuntimeError("The transcription worker did not stop.")
-                return self.get(job_id)
+                snapshot = self.get(job_id)
+                if (
+                    snapshot.error is not None
+                    and snapshot.error.kind == "AudioCleanupError"
+                ):
+                    raise RuntimeError("Could not remove temporary audio.")
+                return snapshot
         finally:
             with self._lock:
                 self._cancel_in_progress = False
@@ -263,6 +305,9 @@ class TranscriptionCoordinator:
                         still_running = monitor.is_alive()
                 if still_running:
                     raise RuntimeError("The transcription worker did not stop.")
+            if self._managed_audio is not None:
+                self._managed_audio.unlink(missing_ok=True)
+                self._managed_audio = None
             self._expiry_thread.join(self._shutdown_timeout)
             if self._expiry_thread.is_alive():
                 raise RuntimeError("The result expiry thread did not stop.")
@@ -315,9 +360,24 @@ class TranscriptionCoordinator:
                     f"Transcription worker exited with code {process.exitcode}.",
                 )
             )
+        cleanup_error: OSError | None = None
+        if self._managed_audio is not None:
+            try:
+                self._managed_audio.unlink(missing_ok=True)
+            except OSError as exc:
+                cleanup_error = exc
+                logger.exception("Could not remove temporary audio.")
         with self._lock:
             if not self._closed:
-                if self._records[job_id].snapshot.state == "cancelling":
+                if cleanup_error is not None:
+                    snapshot = JobSnapshot(
+                        job_id,
+                        "failed",
+                        error=JobError(
+                            "AudioCleanupError", "Could not remove temporary audio."
+                        ),
+                    )
+                elif self._records[job_id].snapshot.state == "cancelling":
                     snapshot = JobSnapshot(job_id, "cancelled")
                 elif outcome.error is not None:
                     snapshot = JobSnapshot(job_id, "failed", error=outcome.error)
@@ -334,3 +394,5 @@ class TranscriptionCoordinator:
                 self._records[job_id] = _Record(snapshot, self._clock())
                 self._changed.notify_all()
             self._active = None
+            if cleanup_error is None:
+                self._managed_audio = None

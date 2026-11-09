@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service, faster-whisper adapter, and temporary job coordinator are available for local use. The API can inspect and cancel jobs, but does not yet accept uploads and there is no browser workflow. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. Its local API accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs. There is no browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -130,9 +130,25 @@ On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and
 
 When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The caller can ask for confirmation and retry with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. No confirmation UI exists yet. The limit bounds the number of retained results, not their individual size.
 
-Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelling` to `cancelled` only after the child exits; a late result is discarded, and the slot remains busy until cancellation finishes. Repeated cancellation is safe, while finished and unknown jobs are reported explicitly. If stopping the worker fails, the error is surfaced and cancellation can be retried. The coordinator does not own the audio paths passed to it and never deletes them; managed temporary uploads and their cleanup belong to slice 1.3.
+Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelling` to `cancelled` only after the child exits and managed audio is removed; a late result is discarded, and the slot remains busy until cancellation finishes. Repeated cancellation is safe, while finished and unknown jobs are reported explicitly. If stopping the worker fails, the error is surfaced and cancellation can be retried. Direct coordinator callers retain ownership of their audio unless they explicitly transfer it with `cleanup_audio=True`.
 
-The app's coordinator exposes `GET /api/v1/jobs/{job_id}` and `POST /api/v1/jobs/{job_id}/cancel`. The POST requires an `Origin` matching the localhost request, and both endpoints reject non-local Host headers and return `Cache-Control: no-store`. Unknown jobs return 404; already-succeeded or failed jobs return 409 on cancellation. These endpoints cannot start a job yet. The app creates its coordinator at startup and stops it at shutdown; its device is selected by `MEETSCRIBE_DEVICE` (`cuda` by default, or explicitly `cpu`). The coordinator is synchronous and must not be called directly from an async event loop.
+The app's coordinator exposes `POST /api/v1/jobs`, `GET /api/v1/jobs/{job_id}`, and `POST /api/v1/jobs/{job_id}/cancel`. POST requests require an `Origin` matching the localhost request; job endpoints reject non-local Host headers and return `Cache-Control: no-store`. Unknown jobs return 404; already-succeeded or failed jobs return 409 on cancellation. The app creates its coordinator at startup and stops it at shutdown; its device is selected by `MEETSCRIBE_DEVICE` (`cuda` by default, or explicitly `cpu`). The coordinator is synchronous and must not be called directly from an async event loop.
+
+The upload is multipart form data with one `file`, optional `language` (`en` or `it`), and optional `replace_oldest_job_id`. It requires `Content-Length`, limits audio to 100,000,000 bytes and five minutes, and allows one upload at a time. The request limit is 100,065,536 bytes; multipart headers, parts and fields are also bounded. A separate decoder process has a 30-second limit. The filename must end in `.wav` or `.mp3` and match the actual format. WAV (PCM) and MP3 must contain one mono audio stream at 8–48 kHz; stereo is explicitly rejected rather than downmixed and risking loss of speech. Unsupported, empty, corrupt or misleading files are rejected before transcription. Uploads time out after 120 seconds.
+
+Multipart parsing uses pinned [python-multipart 0.0.32](https://github.com/Kludex/python-multipart), licensed under Apache-2.0.
+
+For example, after provisioning the model and starting the app, submit an authorized or synthetic file:
+
+```sh
+curl -sS -H 'Origin: http://127.0.0.1:8000' \
+  -F 'file=@test/data/asr/synthetic-meeting.wav' -F 'language=en' \
+  http://127.0.0.1:8000/api/v1/jobs
+```
+
+The response contains a `job_id` for the status endpoint. If capacity is full, the API returns 409 and `oldest_job_id` without starting a worker. To confirm replacement, re-upload with `-F 'replace_oldest_job_id=<oldest_job_id>'`; if the oldest result has changed, confirmation is required again. The Compose configuration mounts the separately provisioned `models/` directory read-only at `/app/models`; the model is not included in the image.
+
+Generated audio is removed on rejection and after worker completion, failure, cancellation or orderly shutdown, before another job can start. If cleanup or decoder termination fails, the app reports the failure and blocks further uploads or jobs as appropriate until shutdown can retry. A sudden process or host crash can leave temporary files in the system temporary directory; orderly deletion cannot guarantee physical erasure or remove filesystem backups.
 
 Call `shutdown()` when using the coordinator directly: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results. The browser cancel control is planned for slice 1.4.
 

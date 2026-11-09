@@ -8,6 +8,7 @@ dependencies = [
     "ctranslate2==4.8.5",
     "fastapi==0.115.12",
     "faster-whisper==1.2.1",
+    "python-multipart==0.0.32",
     "uvicorn==0.34.3",
 ]
 
