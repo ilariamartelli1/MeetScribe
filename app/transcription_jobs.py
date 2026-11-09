@@ -12,7 +12,7 @@ from typing import Literal
 
 from app.asr_contract import Language, Transcript
 
-JobState = Literal["running", "succeeded", "failed"]
+JobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
 TranscriptionJob = Callable[[Path, Language], Transcript]
 
 
@@ -55,6 +55,10 @@ class ResultCapacityError(RuntimeError):
 
 
 class JobNotFoundError(LookupError):
+    pass
+
+
+class JobFinishedError(RuntimeError):
     pass
 
 
@@ -104,6 +108,7 @@ class TranscriptionCoordinator:
         self._shutdown_lock = threading.Lock()
         self._records: dict[str, _Record] = {}
         self._active: tuple[BaseProcess, threading.Thread | None] | None = None
+        self._cancel_in_progress = False
         self._closed = False
         self._expiry_thread = threading.Thread(target=self._expire_loop, daemon=True)
         self._expiry_thread.start()
@@ -121,7 +126,7 @@ class TranscriptionCoordinator:
             if self._closed:
                 raise CoordinatorClosedError("The transcription coordinator is closed.")
             self._expire_results()
-            if self._active is not None:
+            if self._active is not None or self._cancel_in_progress:
                 raise JobBusyError("A transcription job is already running.")
             oldest_id = next(iter(self._records), None)
             if (
@@ -180,6 +185,56 @@ class TranscriptionCoordinator:
             if record is None:
                 raise JobNotFoundError(f"Unknown or expired job: {job_id}")
             return record.snapshot
+
+    def cancel(self, job_id: str) -> JobSnapshot:
+        with self._lock:
+            if self._closed:
+                raise CoordinatorClosedError("The transcription coordinator is closed.")
+            self._expire_results()
+            record = self._records.get(job_id)
+            if record is None:
+                raise JobNotFoundError(f"Unknown or expired job: {job_id}")
+            if record.snapshot.state == "cancelled":
+                return record.snapshot
+            if record.snapshot.state in ("succeeded", "failed"):
+                raise JobFinishedError(f"Job {job_id} has already finished.")
+            if self._cancel_in_progress:
+                return record.snapshot
+            record.snapshot = JobSnapshot(job_id, "cancelling")
+            self._cancel_in_progress = True
+
+        try:
+            with self._shutdown_lock:
+                with self._lock:
+                    if self._closed:
+                        raise CoordinatorClosedError(
+                            "The transcription coordinator is closed."
+                        )
+                    active = self._active
+                if active is not None:
+                    process, monitor = active
+                    if process.is_alive():
+                        try:
+                            process.terminate()
+                        except ProcessLookupError:
+                            if process.is_alive():
+                                raise
+                    if monitor is not None:
+                        monitor.join(self._shutdown_timeout)
+                        if monitor.is_alive():
+                            if process.is_alive():
+                                try:
+                                    process.kill()
+                                except ProcessLookupError:
+                                    if process.is_alive():
+                                        raise
+                            monitor.join(self._shutdown_timeout)
+                        if monitor.is_alive():
+                            raise RuntimeError("The transcription worker did not stop.")
+                return self.get(job_id)
+        finally:
+            with self._lock:
+                self._cancel_in_progress = False
 
     def shutdown(self) -> None:
         with self._shutdown_lock:
@@ -262,7 +317,9 @@ class TranscriptionCoordinator:
             )
         with self._lock:
             if not self._closed:
-                if outcome.error is not None:
+                if self._records[job_id].snapshot.state == "cancelling":
+                    snapshot = JobSnapshot(job_id, "cancelled")
+                elif outcome.error is not None:
                     snapshot = JobSnapshot(job_id, "failed", error=outcome.error)
                 elif isinstance(outcome.result, Transcript):
                     snapshot = JobSnapshot(job_id, "succeeded", result=outcome.result)

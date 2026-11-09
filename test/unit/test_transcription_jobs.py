@@ -16,6 +16,7 @@ from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSe
 from app.transcription_jobs import (
     CoordinatorClosedError,
     JobBusyError,
+    JobFinishedError,
     JobNotFoundError,
     ResultCapacityError,
     TranscriptionCoordinator,
@@ -34,9 +35,15 @@ class FakeJob:
     def __call__(self, audio_path: Path, language: Language) -> Transcript:
         if self.mode == "ignore_term":
             signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        if self.mode == "finish_on_term":
+            signal.signal(
+                signal.SIGTERM, lambda *_: (self.directory / "release").touch()
+            )
         (self.directory / "started").write_text(str(os.getpid()))
         (self.directory / f"started-{audio_path.name}").touch()
-        if self.mode in ("wait", "ignore_term"):
+        if self.mode == "inference":
+            (self.directory / "model-loaded").touch()
+        if self.mode in ("wait", "ignore_term", "finish_on_term", "inference"):
             while not (self.directory / "release").exists():
                 time.sleep(0.01)
         if self.mode == "error":
@@ -72,6 +79,80 @@ def test_running_job_is_pollable_and_rejects_concurrent_work(tmp_path: Path) -> 
         assert result.segments[0].text == "first.wav"
         next_id = coordinator.submit(Path("second.wav"))
         wait_for(lambda: coordinator.get(next_id).state == "succeeded")
+    finally:
+        coordinator.shutdown()
+
+
+@pytest.mark.parametrize("mode", ["wait", "inference", "finish_on_term"])
+def test_cancel_stops_worker_and_discards_late_results(
+    tmp_path: Path, mode: str
+) -> None:
+    coordinator = TranscriptionCoordinator(FakeJob(tmp_path, mode))
+    audio = tmp_path / "caller-owned.wav"
+    audio.touch()
+    try:
+        job_id = coordinator.submit(audio)
+        wait_for(lambda: (tmp_path / "started").exists())
+        if mode == "inference":
+            assert (tmp_path / "model-loaded").exists()
+        assert coordinator._active is not None
+        process, _ = coordinator._active
+        assert coordinator.cancel(job_id).state == "cancelled"
+        assert not process.is_alive()
+        if mode == "finish_on_term":
+            assert process.exitcode == 0
+        assert coordinator.cancel(job_id).state == "cancelled"
+        assert coordinator.get(job_id).result is None
+        assert audio.exists()
+        (tmp_path / "release").touch()
+        next_id = coordinator.submit(Path("next.wav"))
+        wait_for(lambda: coordinator.get(next_id).state == "succeeded")
+        with pytest.raises(JobFinishedError):
+            coordinator.cancel(next_id)
+        with pytest.raises(JobNotFoundError):
+            coordinator.cancel("unknown")
+    finally:
+        coordinator.shutdown()
+
+
+def test_cancelling_is_pollable_and_escalates_to_kill(tmp_path: Path) -> None:
+    coordinator = TranscriptionCoordinator(
+        FakeJob(tmp_path, "ignore_term"), shutdown_timeout_seconds=0.5
+    )
+    try:
+        job_id = coordinator.submit(Path("speech.wav"))
+        wait_for(lambda: (tmp_path / "started").exists())
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            cancelled = pool.submit(coordinator.cancel, job_id)
+            wait_for(lambda: coordinator.get(job_id).state == "cancelling")
+            assert coordinator.cancel(job_id).state == "cancelling"
+            with pytest.raises(JobBusyError):
+                coordinator.submit(Path("next.wav"))
+            assert cancelled.result(timeout=5).state == "cancelled"
+        (tmp_path / "release").touch()
+        next_id = coordinator.submit(Path("next.wav"))
+        wait_for(lambda: coordinator.get(next_id).state == "succeeded")
+    finally:
+        coordinator.shutdown()
+
+
+def test_failed_termination_can_be_retried(tmp_path: Path) -> None:
+    coordinator = TranscriptionCoordinator(FakeJob(tmp_path, "wait"))
+    try:
+        job_id = coordinator.submit(Path("speech.wav"))
+        wait_for(lambda: (tmp_path / "started").exists())
+        with (
+            patch(
+                "multiprocessing.process.BaseProcess.terminate",
+                side_effect=OSError("Cannot terminate worker"),
+            ),
+            pytest.raises(OSError, match="Cannot terminate worker"),
+        ):
+            coordinator.cancel(job_id)
+        assert coordinator.get(job_id).state == "cancelling"
+        with pytest.raises(JobBusyError):
+            coordinator.submit(Path("next.wav"))
+        assert coordinator.cancel(job_id).state == "cancelled"
     finally:
         coordinator.shutdown()
 

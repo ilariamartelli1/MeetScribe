@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service, faster-whisper adapter, and temporary job coordinator are available for local use; there is no transcription API or browser workflow yet. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A minimal FastAPI app exposes a health endpoint and runs in Docker with either GPU access or an explicit CPU test configuration. A typed transcription service, faster-whisper adapter, and temporary job coordinator are available for local use. The API can inspect and cancel jobs, but does not yet accept uploads and there is no browser workflow. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -130,7 +130,11 @@ On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and
 
 When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The caller can ask for confirmation and retry with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. No confirmation UI exists yet. The limit bounds the number of retained results, not their individual size.
 
-Call `shutdown()` when finished: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results. This slice does not yet provide job cancellation, HTTP endpoints, or temporary-audio cleanup; those are planned for later slices. The coordinator is synchronous and must not be called directly from an async event loop.
+Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelling` to `cancelled` only after the child exits; a late result is discarded, and the slot remains busy until cancellation finishes. Repeated cancellation is safe, while finished and unknown jobs are reported explicitly. If stopping the worker fails, the error is surfaced and cancellation can be retried. The coordinator does not own the audio paths passed to it and never deletes them; managed temporary uploads and their cleanup belong to slice 1.3.
+
+The app's coordinator exposes `GET /api/v1/jobs/{job_id}` and `POST /api/v1/jobs/{job_id}/cancel`. The POST requires an `Origin` matching the localhost request, and both endpoints reject non-local Host headers and return `Cache-Control: no-store`. Unknown jobs return 404; already-succeeded or failed jobs return 409 on cancellation. These endpoints cannot start a job yet. The app creates its coordinator at startup and stops it at shutdown; its device is selected by `MEETSCRIBE_DEVICE` (`cuda` by default, or explicitly `cpu`). The coordinator is synchronous and must not be called directly from an async event loop.
+
+Call `shutdown()` when using the coordinator directly: it stops the owned child, escalating from termination to a forced kill if needed, and clears retained results. Restart also loses all results. The browser cancel control is planned for slice 1.4.
 
 The optional offline GPU integration test runs the actual adapter through the spawned child in the app image:
 
