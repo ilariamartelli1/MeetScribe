@@ -1,0 +1,14 @@
+GENERATED DRAFT - LISTEN AND VERIFY BEFORE USE AS A REFERENCE
+
+[2000–7731 ms] Buongiorno a tutte e a tutti, questa è una riunione di prova completamente sintetica.
+[8080–13376 ms] Elena presenta il prototipo che trascrive le registrazioni sul computer locale.
+[13726–18838 ms] Il gruppo esamina i risultati prima di condividere qualsiasi trascrizione.
+[19188–24217 ms] No, non approviamo il rilascio finché i test non saranno completati.
+[24567–29335 ms] Marco controllerà il file audio e correggerà eventuali parole mancanti.
+[29685–36541 ms] La dimostrazione è prevista per il quattordici aprile, con un budget di duemila quattrocento euro.
+[36891–42286 ms] Dopo una breve pausa, Anna verificherà anche le parole pronunciate a voce bassa.
+[42636–48037 ms] Il programma deve mantenere i riferimenti temporali della registrazione originale.
+[48387–52894 ms] I nomi e le cifre in questa registrazione sono inventati per il test.
+[55394–60769 ms] La bozza non è un verbale verificato e deve essere riletta da una persona.
+[61119–67354 ms] Se il lavoro viene annullato, il processo deve fermarsi prima di accettare un nuovo file.
+[67704–72968 ms] Il gruppo si riunirà nuovamente il ventisette maggio per esaminare le correzioni.

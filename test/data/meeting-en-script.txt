@@ -1,0 +1,51 @@
+GENERATED DRAFT - LISTEN AND VERIFY BEFORE USE AS A REFERENCE
+
+[2000–6483 ms] Good morning everyone, thank you for joining this fictional project review.
+[6833–13331 ms] Today we will discuss the transcription prototype, the current schedule, and the next demonstration.
+[13681–18950 ms] Elena is taking notes, and Marco will describe the latest changes to the service.
+[19300–24891 ms] We have a working upload page, and the application can process a short recording locally.
+[25241–31813 ms] The team tested both wave and MP3 files, using only synthetic and authorized material.
+[32163–38077 ms] The browser displays a draft transcript with timestamps, and a reviewer can correct the wording.
+[38427–43960 ms] It is important to say that an automatic transcript is not a verified meeting record.
+[44310–48931 ms] No, we will not release the feature before the test results have been reviewed.
+[49281–54240 ms] A quiet word can change the meaning of a decision, especially when it is a negation.
+[56740–62210 ms] The review group will compare the draft with the audio instead of relying on confidence alone.
+[62560–67912 ms] On fourteen April, the team plans to show a short demonstration to the product group.
+[68262–74552 ms] The demonstration will use a fictional conversation and will not include a real customer recording.
+[74902–80340 ms] The estimated preparation budget is two thousand four hundred euros for the first review.
+[80690–86964 ms] That amount includes testing time, documentation, and a small reserve for unexpected work.
+[87314–92950 ms] Paolo asked whether the team should add speaker labels before validating the basic transcript.
+[93300–99338 ms] The answer was no: speaker labels should wait until the transcription workflow is reliable.
+[Review note: the voice may say "colon" after "no"; verify the spoken wording.]
+[99688–106016 ms] For the next checkpoint, Anna will check the behavior of upload, cancellation, and draft download.
+[106366–112107 ms] She will record any mistake with its original timestamp and a short description of the correction.
+[112457–117735 ms] The team will also inspect words spoken immediately after a pause of several seconds.
+[120235–126065 ms] The first version accepts one recording at a time, rather than running several models together.
+[126415–132325 ms] If another request arrives while a job is active, the application should explain that it is busy.
+[132675–138390 ms] If a request is cancelled, the worker must stop before a new recording begins processing.
+[138740–144889 ms] Elena noted that temporary audio should be removed after processing, cancellation, or failure.
+[145239–151580 ms] A downloaded draft remains on the reviewer's computer and is outside the application's deletion control.
+[151930–157473 ms] The transcript should be clearly marked as a draft until a person checks the original recording.
+[157823–162961 ms] A person may correct a name, a number, a missing word, or an incorrect date.
+[163311–169642 ms] During a previous synthetic test, the phrase not approved was especially important to preserve.
+[169992–175696 ms] The model must not silently translate an Italian recording when transcription is requested.
+[176046–180714 ms] The group agreed to keep model selection separate from the rest of the application.
+[181064–186489 ms] This design lets the team compare a different transcription model using the same recording.
+[186839–192167 ms] A smaller model may be useful if a later workload exceeds the available graphics memory.
+[194667–200815 ms] The current laptop has limited resources, so each heavy processing stage should run in sequence.
+[201165–206572 ms] Marco will measure memory during a longer recording and report the highest observed value.
+[206922–211963 ms] These measurements will be collected with normal desktop applications running in the background.
+[212313–217533 ms] A single successful sample does not prove that the system is ready for every meeting.
+[217883–223773 ms] The reviewers should include different speaking speeds, pauses, and deliberately quiet words.
+[224123–230916 ms] They should also check names, spoken dates, numbers, and amounts in both supported languages.
+[231266–237008 ms] The next internal review is planned for twenty seven May, after the test notes are complete.
+[237358–244115 ms] The target is fifteen reviewed recordings, although the exact quality threshold has not been chosen.
+[244465–250053 ms] A threshold should be set after measuring a representative baseline rather than guessing in advance.
+[250403–255618 ms] The team will document which recordings were used and whether each one was authorized.
+[255968–261378 ms] Any real company recording requires separate approval before it is used for development.
+[261728–267624 ms] For this demonstration, the audio and all names are artificial, and the numbers are fictional.
+[267974–273918 ms] Before closing, Elena will summarize the actions and confirm who is responsible for each one.
+[274268–279940 ms] Anna will review the browser workflow, and Marco will check graphics memory after cancellation.
+[280290–286245 ms] Paolo will prepare the comparison notes, but he will not publish an unreviewed transcript.
+[286595–291805 ms] No deadline will be changed without an explicit decision recorded in the meeting notes.
+[292155–296955 ms] Thank you everyone; the team will meet again after the results have been reviewed.

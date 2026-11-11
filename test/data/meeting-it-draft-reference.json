@@ -1,0 +1,108 @@
+{
+  "status": "AUDIO REVIEWED BY USER; TIMINGS NOT YET VERIFIED",
+  "language": "it",
+  "sample_rate_hz": 22050,
+  "duration_ms": 73318,
+  "source": "Synthetic eSpeak NG speech; all names, amounts, and dates are fictional.",
+  "timing_note": "Sentence and quiet-word spans are generated from concatenation, not human annotations. Listen and verify transcription and boundaries.",
+  "files_sha256": {
+    "meeting-it.wav": "f8d1a6dcc19194768b4aa7b39de72b6ad0aa4ed96dc3558aca4fbb94ab904880",
+    "meeting-it.mp3": "b72d6b258cd1504155c9edf457b793ee4ecda50deadc72b1c49befbcd64631a6"
+  },
+  "segments": [
+    {
+      "sentence": "Buongiorno a tutte e a tutti, questa è una riunione di prova completamente sintetica.",
+      "start_ms": 2000,
+      "end_ms": 7731,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Elena presenta il prototipo che trascrive le registrazioni sul computer locale.",
+      "start_ms": 8080,
+      "end_ms": 13376,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Il gruppo esamina i risultati prima di condividere qualsiasi trascrizione.",
+      "start_ms": 13726,
+      "end_ms": 18838,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "No, non approviamo il rilascio finché i test non saranno completati.",
+      "start_ms": 19188,
+      "end_ms": 24217,
+      "generated_quiet_spans": [
+        {
+          "word": "No",
+          "start_ms": 19188,
+          "end_ms": 19581
+        },
+        {
+          "word": "non",
+          "start_ms": 19591,
+          "end_ms": 20068
+        },
+        {
+          "word": "non",
+          "start_ms": 22418,
+          "end_ms": 22895
+        }
+      ]
+    },
+    {
+      "sentence": "Marco controllerà il file audio e correggerà eventuali parole mancanti.",
+      "start_ms": 24567,
+      "end_ms": 29335,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "La dimostrazione è prevista per il quattordici aprile, con un budget di duemila quattrocento euro.",
+      "start_ms": 29685,
+      "end_ms": 36541,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Dopo una breve pausa, Anna verificherà anche le parole pronunciate a voce bassa.",
+      "start_ms": 36891,
+      "end_ms": 42286,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Il programma deve mantenere i riferimenti temporali della registrazione originale.",
+      "start_ms": 42636,
+      "end_ms": 48037,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "I nomi e le cifre in questa registrazione sono inventati per il test.",
+      "start_ms": 48387,
+      "end_ms": 52894,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "La bozza non è un verbale verificato e deve essere riletta da una persona.",
+      "start_ms": 55394,
+      "end_ms": 60769,
+      "generated_quiet_spans": [
+        {
+          "word": "non",
+          "start_ms": 56120,
+          "end_ms": 56741
+        }
+      ]
+    },
+    {
+      "sentence": "Se il lavoro viene annullato, il processo deve fermarsi prima di accettare un nuovo file.",
+      "start_ms": 61119,
+      "end_ms": 67354,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Il gruppo si riunirà nuovamente il ventisette maggio per esaminare le correzioni.",
+      "start_ms": 67704,
+      "end_ms": 72968,
+      "generated_quiet_spans": []
+    }
+  ]
+}

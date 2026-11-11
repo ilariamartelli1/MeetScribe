@@ -1,0 +1,368 @@
+{
+  "status": "AUDIO REVIEWED BY USER; TIMINGS NOT YET VERIFIED",
+  "language": "en",
+  "sample_rate_hz": 22050,
+  "duration_ms": 297305,
+  "source": "Synthetic eSpeak NG speech; all names, amounts, and dates are fictional.",
+  "timing_note": "Sentence and quiet-word spans are generated from concatenation, not human annotations. Listen and verify transcription and boundaries.",
+  "files_sha256": {
+    "meeting-en.wav": "06e2e703b4b1e611d5a0a011b220cc1013763c80c1e31b01d7200ef65ff646f7",
+    "meeting-en.mp3": "ef3d4e68a1be6e18fc08788d08e363e3b75f6246a510ae488f10543dde4db69c"
+  },
+  "segments": [
+    {
+      "sentence": "Good morning everyone, thank you for joining this fictional project review.",
+      "start_ms": 2000,
+      "end_ms": 6483,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Today we will discuss the transcription prototype, the current schedule, and the next demonstration.",
+      "start_ms": 6833,
+      "end_ms": 13331,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Elena is taking notes, and Marco will describe the latest changes to the service.",
+      "start_ms": 13681,
+      "end_ms": 18950,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "We have a working upload page, and the application can process a short recording locally.",
+      "start_ms": 19300,
+      "end_ms": 24891,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The team tested both wave and MP3 files, using only synthetic and authorized material.",
+      "start_ms": 25241,
+      "end_ms": 31813,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The browser displays a draft transcript with timestamps, and a reviewer can correct the wording.",
+      "start_ms": 32163,
+      "end_ms": 38077,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "It is important to say that an automatic transcript is not a verified meeting record.",
+      "start_ms": 38427,
+      "end_ms": 43960,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 41939,
+          "end_ms": 42290
+        }
+      ]
+    },
+    {
+      "sentence": "No, we will not release the feature before the test results have been reviewed.",
+      "start_ms": 44310,
+      "end_ms": 48931,
+      "generated_quiet_spans": [
+        {
+          "word": "No",
+          "start_ms": 44310,
+          "end_ms": 44699
+        },
+        {
+          "word": "not",
+          "start_ms": 45266,
+          "end_ms": 45617
+        }
+      ]
+    },
+    {
+      "sentence": "A quiet word can change the meaning of a decision, especially when it is a negation.",
+      "start_ms": 49281,
+      "end_ms": 54240,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The review group will compare the draft with the audio instead of relying on confidence alone.",
+      "start_ms": 56740,
+      "end_ms": 62210,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "On fourteen April, the team plans to show a short demonstration to the product group.",
+      "start_ms": 62560,
+      "end_ms": 67912,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The demonstration will use a fictional conversation and will not include a real customer recording.",
+      "start_ms": 68262,
+      "end_ms": 74552,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 72031,
+          "end_ms": 72382
+        }
+      ]
+    },
+    {
+      "sentence": "The estimated preparation budget is two thousand four hundred euros for the first review.",
+      "start_ms": 74902,
+      "end_ms": 80340,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "That amount includes testing time, documentation, and a small reserve for unexpected work.",
+      "start_ms": 80690,
+      "end_ms": 86964,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Paolo asked whether the team should add speaker labels before validating the basic transcript.",
+      "start_ms": 87314,
+      "end_ms": 92950,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The answer was no: speaker labels should wait until the transcription workflow is reliable.",
+      "review_note": "The user reports the synthesizer may say the word 'colon' after 'no'; verify against the audio when scoring the reference.",
+      "start_ms": 93300,
+      "end_ms": 99338,
+      "generated_quiet_spans": [
+        {
+          "word": "no",
+          "start_ms": 94157,
+          "end_ms": 94545
+        }
+      ]
+    },
+    {
+      "sentence": "For the next checkpoint, Anna will check the behavior of upload, cancellation, and draft download.",
+      "start_ms": 99688,
+      "end_ms": 106016,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "She will record any mistake with its original timestamp and a short description of the correction.",
+      "start_ms": 106366,
+      "end_ms": 112107,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The team will also inspect words spoken immediately after a pause of several seconds.",
+      "start_ms": 112457,
+      "end_ms": 117735,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The first version accepts one recording at a time, rather than running several models together.",
+      "start_ms": 120235,
+      "end_ms": 126065,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "If another request arrives while a job is active, the application should explain that it is busy.",
+      "start_ms": 126415,
+      "end_ms": 132325,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "If a request is cancelled, the worker must stop before a new recording begins processing.",
+      "start_ms": 132675,
+      "end_ms": 138390,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Elena noted that temporary audio should be removed after processing, cancellation, or failure.",
+      "start_ms": 138740,
+      "end_ms": 144889,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "A downloaded draft remains on the reviewer's computer and is outside the application's deletion control.",
+      "start_ms": 145239,
+      "end_ms": 151580,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The transcript should be clearly marked as a draft until a person checks the original recording.",
+      "start_ms": 151930,
+      "end_ms": 157473,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "A person may correct a name, a number, a missing word, or an incorrect date.",
+      "start_ms": 157823,
+      "end_ms": 162961,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "During a previous synthetic test, the phrase not approved was especially important to preserve.",
+      "start_ms": 163311,
+      "end_ms": 169642,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 166393,
+          "end_ms": 166744
+        }
+      ]
+    },
+    {
+      "sentence": "The model must not silently translate an Italian recording when transcription is requested.",
+      "start_ms": 169992,
+      "end_ms": 175696,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 170904,
+          "end_ms": 171255
+        }
+      ]
+    },
+    {
+      "sentence": "The group agreed to keep model selection separate from the rest of the application.",
+      "start_ms": 176046,
+      "end_ms": 180714,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "This design lets the team compare a different transcription model using the same recording.",
+      "start_ms": 181064,
+      "end_ms": 186489,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "A smaller model may be useful if a later workload exceeds the available graphics memory.",
+      "start_ms": 186839,
+      "end_ms": 192167,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The current laptop has limited resources, so each heavy processing stage should run in sequence.",
+      "start_ms": 194667,
+      "end_ms": 200815,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Marco will measure memory during a longer recording and report the highest observed value.",
+      "start_ms": 201165,
+      "end_ms": 206572,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "These measurements will be collected with normal desktop applications running in the background.",
+      "start_ms": 206922,
+      "end_ms": 211963,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "A single successful sample does not prove that the system is ready for every meeting.",
+      "start_ms": 212313,
+      "end_ms": 217533,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 214515,
+          "end_ms": 214877
+        }
+      ]
+    },
+    {
+      "sentence": "The reviewers should include different speaking speeds, pauses, and deliberately quiet words.",
+      "start_ms": 217883,
+      "end_ms": 223773,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "They should also check names, spoken dates, numbers, and amounts in both supported languages.",
+      "start_ms": 224123,
+      "end_ms": 230916,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The next internal review is planned for twenty seven May, after the test notes are complete.",
+      "start_ms": 231266,
+      "end_ms": 237008,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The target is fifteen reviewed recordings, although the exact quality threshold has not been chosen.",
+      "start_ms": 237358,
+      "end_ms": 244115,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 242889,
+          "end_ms": 243254
+        }
+      ]
+    },
+    {
+      "sentence": "A threshold should be set after measuring a representative baseline rather than guessing in advance.",
+      "start_ms": 244465,
+      "end_ms": 250053,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "The team will document which recordings were used and whether each one was authorized.",
+      "start_ms": 250403,
+      "end_ms": 255618,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Any real company recording requires separate approval before it is used for development.",
+      "start_ms": 255968,
+      "end_ms": 261378,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "For this demonstration, the audio and all names are artificial, and the numbers are fictional.",
+      "start_ms": 261728,
+      "end_ms": 267624,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Before closing, Elena will summarize the actions and confirm who is responsible for each one.",
+      "start_ms": 267974,
+      "end_ms": 273918,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Anna will review the browser workflow, and Marco will check graphics memory after cancellation.",
+      "start_ms": 274268,
+      "end_ms": 279940,
+      "generated_quiet_spans": []
+    },
+    {
+      "sentence": "Paolo will prepare the comparison notes, but he will not publish an unreviewed transcript.",
+      "start_ms": 280290,
+      "end_ms": 286245,
+      "generated_quiet_spans": [
+        {
+          "word": "not",
+          "start_ms": 283779,
+          "end_ms": 284143
+        }
+      ]
+    },
+    {
+      "sentence": "No deadline will be changed without an explicit decision recorded in the meeting notes.",
+      "start_ms": 286595,
+      "end_ms": 291805,
+      "generated_quiet_spans": [
+        {
+          "word": "No",
+          "start_ms": 286595,
+          "end_ms": 286984
+        }
+      ]
+    },
+    {
+      "sentence": "Thank you everyone; the team will meet again after the results have been reviewed.",
+      "start_ms": 292155,
+      "end_ms": 296955,
+      "generated_quiet_spans": []
+    }
+  ]
+}
