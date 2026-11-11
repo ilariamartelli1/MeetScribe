@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SAMPLE_DIR = PROJECT_ROOT / "test/data/asr"
+SAMPLE_DIR = PROJECT_ROOT / "test/data"
 EXPECTED_TEXT = "This is a test meeting. The project is on schedule."
 
 TRANSCRIBE_SCRIPT = """

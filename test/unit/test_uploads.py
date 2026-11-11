@@ -25,7 +25,7 @@ from app.uploads import (
 from test.unit.test_transcription_jobs import FakeJob, wait_for
 
 HEADERS = {"origin": "http://localhost"}
-FIXTURES = Path(__file__).resolve().parents[1] / "data" / "asr"
+FIXTURES = Path(__file__).resolve().parents[1] / "data"
 
 
 def wav_bytes(samples: int = 800, sample_rate: int = 8000) -> bytes:

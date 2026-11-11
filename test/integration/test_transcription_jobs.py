@@ -37,7 +37,7 @@ def test_real_model_runs_in_an_owned_child(asr_image: str) -> None:
             "--mount",
             f"type=bind,src={model_dir},dst=/model,readonly",
             "--mount",
-            f"type=bind,src={PROJECT_ROOT / 'test/data/asr'},dst=/audio,readonly",
+            f"type=bind,src={PROJECT_ROOT / 'test/data'},dst=/audio,readonly",
             "--mount",
             f"type=bind,src={PROJECT_ROOT / 'test/src'},dst=/checks,readonly",
             "--env",

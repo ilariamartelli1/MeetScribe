@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(
     reason="Set MEETSCRIBE_BROWSER_TESTS=1 to run Chromium browser tests.",
 )
 
-SAMPLE = Path(__file__).resolve().parents[1] / "data/asr/synthetic-meeting.wav"
+SAMPLE = Path(__file__).resolve().parents[1] / "data/synthetic-meeting.wav"
 UNTRUSTED = '<img src=x onerror="window.injected=true"> no'
 
 

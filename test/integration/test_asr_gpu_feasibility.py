@@ -14,8 +14,8 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATHS = {
     "MEETSCRIBE_MODEL_DIR": PROJECT_ROOT / "models/faster-whisper-large-v3-turbo",
-    "MEETSCRIBE_TEST_WAV": PROJECT_ROOT / "test/data/asr/synthetic-meeting.wav",
-    "MEETSCRIBE_TEST_MP3": PROJECT_ROOT / "test/data/asr/synthetic-meeting.mp3",
+    "MEETSCRIBE_TEST_WAV": PROJECT_ROOT / "test/data/synthetic-meeting.wav",
+    "MEETSCRIBE_TEST_MP3": PROJECT_ROOT / "test/data/synthetic-meeting.mp3",
 }
 
 
