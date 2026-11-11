@@ -80,10 +80,11 @@ described above.
 
 ## Human review still required
 
-Listen to the two recordings against `test/data/meeting-en-script.txt` and
-`test/data/meeting-it-script.txt`, correct the spoken text and verify the
-generated sentence and quiet-word boundaries in the corresponding
-`meeting-*-draft-reference.json` files. In particular, check the discrepancies
-above, quiet negations, names, amounts, dates and speech after pauses. Review
-both formats for encoding-related differences. Until this review and the
-representativeness assessment are complete, slice 1.5 remains open.
+Listen to the two recordings against
+`test/data/checkpoint/english/meeting-en-script.txt` and
+`test/data/checkpoint/italian/meeting-it-script.txt`, correct the spoken text
+and verify the generated sentence and quiet-word boundaries in the
+`meeting-*-draft-reference.json` files in those same directories. In particular,
+check the discrepancies above, quiet negations, names, amounts, dates and speech
+after pauses. Review both formats for encoding-related differences. Until this
+review and the representativeness assessment are complete, slice 1.5 remains open.

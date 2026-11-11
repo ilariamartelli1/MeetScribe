@@ -50,7 +50,7 @@ the reference is not fully human-annotated. The generated voice says "colon"
 aloud in one sentence; the user confirmed this by listening to the recording.
 Do not treat these figures as a quality threshold.
 
-The synthetic eSpeak NG recording is stored at `test/data/meeting-en.mp3`
+The synthetic eSpeak NG recording is stored at `test/data/checkpoint/english/meeting-en.mp3`
 (SHA-256 `ef3d4e68a1be6e18fc08788d08e363e3b75f6246a510ae488f10543dde4db69c`).
 To rerun the specific regression:
 

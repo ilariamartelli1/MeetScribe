@@ -109,14 +109,15 @@ HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_IMPLICIT_TOKEN=1 \
 
 The model card identifies the converted model as MIT-licensed. Its pinned `model.bin` SHA-256 is `e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da`; the check verifies this hash before loading. The faster-whisper and CTranslate2 projects are MIT-licensed, PyAV is BSD-licensed, and NVIDIA CUDA libraries have NVIDIA license terms. Review licenses before distribution.
 
-The repository includes a short synthetic English sample in WAV and MP3 at `test/data/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
+The repository includes a short synthetic English sample in WAV and MP3 at `test/data/smoke/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
 
-`test/data/` also contains the longer synthetic English and Italian checkpoint
-recordings (`meeting-en.*` and `meeting-it.*`) and their draft scripts and
-references. The recordings were reviewed for speech; the generated reference
+`test/data/checkpoint/english/` and `test/data/checkpoint/italian/` contain the
+synthetic checkpoint recordings and their draft scripts and references. The
+recordings were reviewed for speech; the generated reference
 timings have not been human-verified. The English recording says "colon" aloud
-in one sentence. `long-synthetic-meeting.mp3` is a separate short Flite sample
-for manual testing. All these recordings contain fictional content.
+in one sentence. `test/data/manual/long-synthetic-meeting.mp3` is a separate
+short Flite sample for manual testing. All these recordings contain fictional
+content.
 
 After provisioning the model above, run the opt-in check:
 
@@ -147,7 +148,7 @@ The opt-in adapter smoke test runs the production adapter in the actual app imag
 MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s test/integration/test_asr_adapter.py
 ```
 
-The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in `test/data/` are synthetic eSpeak NG 1.51 speech, with the negation utterances at 30% amplitude and long silent gaps. The English reference is "No. We do not approve." and the Italian reference is "No. Non siamo pronti." Annotated source intervals are `no` 3000–3321 ms and `not` 6647–6940 ms for English; `no` 3000–3265 ms and `non` 5965–6333 ms for Italian. The test checks each expected negation appears in a segment overlapping its source interval, and checks silence is rejected. Segment overlap does not establish word-level timing accuracy.
+The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in `test/data/smoke/` are synthetic eSpeak NG 1.51 speech, with the negation utterances at 30% amplitude and long silent gaps. The English reference is "No. We do not approve." and the Italian reference is "No. Non siamo pronti." Annotated source intervals are `no` 3000–3321 ms and `not` 6647–6940 ms for English; `no` 3000–3265 ms and `non` 5965–6333 ms for Italian. The test checks each expected negation appears in a segment overlapping its source interval, and checks silence is rejected. Segment overlap does not establish word-level timing accuracy.
 
 On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and "No. Non siamo pronti." with no missed reference negations; silence was rejected. This small synthetic sample is not a quality benchmark, and quiet speech can still be missed in real recordings. Use only synthetic or explicitly authorized non-sensitive audio.
 
@@ -169,7 +170,7 @@ For example, after provisioning the model and starting the app, submit an author
 
 ```sh
 curl -sS -H 'Origin: http://127.0.0.1:8000' \
-  -F 'file=@test/data/synthetic-meeting.wav' -F 'language=en' \
+  -F 'file=@test/data/smoke/synthetic-meeting.wav' -F 'language=en' \
   http://127.0.0.1:8000/api/v1/jobs
 ```
 

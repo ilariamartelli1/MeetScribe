@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RECORDING = PROJECT_ROOT / "test/data/meeting-en.mp3"
+RECORDING = PROJECT_ROOT / "test/data/checkpoint/english/meeting-en.mp3"
 
 
 @pytest.mark.skipif(

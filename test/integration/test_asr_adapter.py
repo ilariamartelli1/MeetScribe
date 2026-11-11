@@ -37,7 +37,7 @@ def test_quiet_negations_and_silence_on_real_model(asr_image: str) -> None:
             "--mount",
             f"type=bind,src={model_dir},dst=/model,readonly",
             "--mount",
-            f"type=bind,src={PROJECT_ROOT / 'test/data'},dst=/audio,readonly",
+            f"type=bind,src={PROJECT_ROOT / 'test/data/smoke'},dst=/audio,readonly",
             "--mount",
             f"type=bind,src={PROJECT_ROOT / 'test/src'},dst=/checks,readonly",
             "--env",
