@@ -46,8 +46,9 @@ Compared with the generated script, an exploratory token comparison found
 approximately 233 differing tokens in one previous-settings MP3 output with
 in-bounds repetitive text, versus 14 with conditioning disabled. This is not
 WER: it uses a simple sequence matcher, does not normalize spoken numbers, and
-the reference is not fully human-annotated. The generated voice may also speak
-"colon" in one sentence. Do not treat these figures as a quality threshold.
+the reference is not fully human-annotated. The generated voice says "colon"
+aloud in one sentence; the user confirmed this by listening to the recording.
+Do not treat these figures as a quality threshold.
 
 The synthetic eSpeak NG recording is stored at `test/data/meeting-en.mp3`
 (SHA-256 `ef3d4e68a1be6e18fc08788d08e363e3b75f6246a510ae488f10543dde4db69c`).

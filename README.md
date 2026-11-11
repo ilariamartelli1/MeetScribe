@@ -114,8 +114,8 @@ The repository includes a short synthetic English sample in WAV and MP3 at `test
 `test/data/` also contains the longer synthetic English and Italian checkpoint
 recordings (`meeting-en.*` and `meeting-it.*`) and their draft scripts and
 references. The recordings were reviewed for speech; the generated reference
-timings have not been human-verified, and the English reference notes a possible
-spoken "colon". `long-synthetic-meeting.mp3` is a separate short Flite sample
+timings have not been human-verified. The English recording says "colon" aloud
+in one sentence. `long-synthetic-meeting.mp3` is a separate short Flite sample
 for manual testing. All these recordings contain fictional content.
 
 After provisioning the model above, run the opt-in check:

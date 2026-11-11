@@ -15,8 +15,8 @@ GENERATED DRAFT - LISTEN AND VERIFY BEFORE USE AS A REFERENCE
 [74902–80340 ms] The estimated preparation budget is two thousand four hundred euros for the first review.
 [80690–86964 ms] That amount includes testing time, documentation, and a small reserve for unexpected work.
 [87314–92950 ms] Paolo asked whether the team should add speaker labels before validating the basic transcript.
-[93300–99338 ms] The answer was no: speaker labels should wait until the transcription workflow is reliable.
-[Review note: the voice may say "colon" after "no"; verify the spoken wording.]
+[93300–99338 ms] The answer was no, colon, speaker labels should wait until the transcription workflow is reliable.
+[Review note: the user confirmed that the voice says "colon" after "no".]
 [99688–106016 ms] For the next checkpoint, Anna will check the behavior of upload, cancellation, and draft download.
 [106366–112107 ms] She will record any mistake with its original timestamp and a short description of the correction.
 [112457–117735 ms] The team will also inspect words spoken immediately after a pause of several seconds.

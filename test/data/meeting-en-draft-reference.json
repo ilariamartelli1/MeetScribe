@@ -124,8 +124,8 @@
       "generated_quiet_spans": []
     },
     {
-      "sentence": "The answer was no: speaker labels should wait until the transcription workflow is reliable.",
-      "review_note": "The user reports the synthesizer may say the word 'colon' after 'no'; verify against the audio when scoring the reference.",
+      "sentence": "The answer was no, colon, speaker labels should wait until the transcription workflow is reliable.",
+      "review_note": "The user confirmed that the synthesizer says 'colon' after 'no'.",
       "start_ms": 93300,
       "end_ms": 99338,
       "generated_quiet_spans": [
