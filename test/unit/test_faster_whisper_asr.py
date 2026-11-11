@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 from app import faster_whisper_asr as adapter
-from app.asr_service import NoSpeechError, TranscriptionService
+from app.asr_service import InvalidTranscriptError, NoSpeechError, TranscriptionService
 
 
 @pytest.fixture
@@ -55,8 +55,18 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
         "task": "transcribe",
         "beam_size": 5,
         "vad_filter": True,
+        "condition_on_previous_text": False,
     }
     assert constructor.call_args.kwargs["local_files_only"] is True
+    assert (
+        transcript.provenance.beam_size
+        == model.transcribe.call_args.kwargs["beam_size"]
+    )
+    assert (
+        transcript.provenance.vad_enabled
+        == model.transcribe.call_args.kwargs["vad_filter"]
+    )
+    assert transcript.provenance.condition_on_previous_text is False
 
 
 def test_cpu_is_explicit_and_silence_is_rejected(
@@ -138,3 +148,23 @@ def test_silence_with_no_segments_and_nonfinite_timestamps_fail(
     )
     with pytest.raises(ValueError, match="non-finite"):
         transcriber.transcribe(Path("sample.wav"), "en")
+
+
+def test_out_of_bounds_segments_are_rejected_without_clamping_or_retry(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = Mock()
+    model.model.device = "cpu"
+    model.model.compute_type = "int8"
+    model.transcribe.return_value = (
+        iter([SimpleNamespace(start=0.1, end=1.5, text="wrong")]),
+        None,
+    )
+    monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
+    monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [0] * 16000)
+    transcriber = adapter.FasterWhisperTranscriber(model_dir, "cpu")
+
+    with pytest.raises(InvalidTranscriptError):
+        TranscriptionService(transcriber).transcribe(Path("speech.mp3"))
+    assert model.transcribe.call_count == 1
+    assert model.transcribe.call_args.kwargs["condition_on_previous_text"] is False

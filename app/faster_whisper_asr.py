@@ -13,6 +13,9 @@ from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSe
 MODEL_REVISION = "4df90f75321148c3a29a9e2351b7ddf8f5b115a8"
 MODEL_SHA256 = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
 SAMPLE_RATE = 16000
+BEAM_SIZE = 5
+VAD_ENABLED = True
+CONDITION_ON_PREVIOUS_TEXT = False
 Device = Literal["cpu", "cuda"]
 
 
@@ -60,8 +63,9 @@ class FasterWhisperTranscriber:
             model_sha256=MODEL_SHA256,
             device=device,
             compute_type=compute_type,
-            vad_enabled=True,
-            beam_size=5,
+            vad_enabled=VAD_ENABLED,
+            beam_size=BEAM_SIZE,
+            condition_on_previous_text=CONDITION_ON_PREVIOUS_TEXT,
         )
         self._closed = False
 
@@ -81,7 +85,12 @@ class FasterWhisperTranscriber:
             )
 
         segments, _ = self._model.transcribe(
-            audio, language=language, task="transcribe", beam_size=5, vad_filter=True
+            audio,
+            language=language,
+            task="transcribe",
+            beam_size=BEAM_SIZE,
+            vad_filter=VAD_ENABLED,
+            condition_on_previous_text=CONDITION_ON_PREVIOUS_TEXT,
         )
         result = []
         for segment in segments:

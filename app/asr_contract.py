@@ -23,6 +23,7 @@ class ModelProvenance:
     compute_type: str
     vad_enabled: bool
     beam_size: int
+    condition_on_previous_text: bool | None = None
 
 
 @dataclass(frozen=True)
