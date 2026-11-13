@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, edit transcripts, and download an unreviewed draft. The first-release checkpoint is not yet complete. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, edit transcripts, and download an unreviewed draft. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
 ## Local setup
 
@@ -137,6 +137,25 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q test/integration/test
 ```
 
 This compares each transcript with the known sentence, ignoring capitalization, punctuation and whitespace. On a mismatch it reports the expected and actual text. It always uses the versioned synthetic audio, though `MEETSCRIBE_MODEL_DIR` can select a different local copy of the pinned model. Passing one synthetic sentence does not establish overall transcription quality.
+
+To evaluate all four longer checkpoint recordings against the user-validated
+scripts using NeMo text normalization and JiWER:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s test/integration/test_checkpoint_wer.py
+```
+
+The test uses the same offline containerized production adapter and checks
+fixture hashes and script/JSON text consistency. It enforces **WER ≤ 3% for
+each file** and fails on alignment differences in selected negation words
+(`no`, `not`, `never`, `non`, `mai`). The normalization and score run in the
+local development environment; NeMo, Pynini and JiWER are not added to the app
+image. The test prints WER and error counts for the synthetic fixtures; a
+failed gate also prints an alignment. English spoken dates can count as errors
+because NeMo may express digits as ordinals. The negation check is based on
+word alignment, not a complete semantic or grammatical analysis. Neither
+passing this synthetic test nor its 3% threshold establishes quality on real
+meetings. See [the checkpoint report](docs/sprint-1-checkpoint.md) for results.
 
 ## Timestamped transcription contract
 

@@ -1,9 +1,11 @@
-# Sprint 1 checkpoint: preliminary evaluation
+# Sprint 1 checkpoint: synthetic evaluation
 
-Date: 2026-11-11. This is not first-release acceptance: the synthetic reference
-text and generated timing boundaries still need human verification, and the
+The user validated the spoken text in the English and Italian scripts against
+the audio. Generated timing boundaries have not been human-verified, and the
 recordings are not representative of a range of real speakers or meetings.
-Only fictional, synthetic audio was used.
+Only fictional, synthetic audio was used. The automated synthetic checkpoint
+passed on 2026-11-13; no additional human integration test is required to
+proceed to the next slice.
 
 For the separate experiment with previous-text conditioning enabled, see
 [the comparison report](sprint-1-conditioning-enabled.md).
@@ -33,7 +35,7 @@ Matching ignores case and punctuation; it does not normalize numbers or
 currency symbols. Times are approximate **draft sentence** intervals on the
 original recording, not human-verified word timestamps. The descriptions below
 inspect the full text, including currency symbols. Differences may reflect the
-generated speech or unverified reference rather than model mistakes. The
+generated speech or transcription rather than a verified semantic error. The
 `Captured runs` column counts the separate three-run adapter comparison below;
 the browser run is not included in that count.
 
@@ -109,13 +111,37 @@ installation and model download commands were not rerun. The browser Compose
 run did not block network access; offline operation was checked separately as
 described above.
 
-## Human review still required
+## Automated WER checkpoint
 
-Listen to the two recordings against
-`test/data/checkpoint/english/meeting-en-script.txt` and
-`test/data/checkpoint/italian/meeting-it-script.txt`, correct the spoken text
-and verify the generated sentence and quiet-word boundaries in the
-`meeting-*-draft-reference.json` files in those same directories. In particular,
-check the discrepancies above, quiet negations, names, amounts, dates and speech
-after pauses. Review both formats for encoding-related differences. Until this
-review and the representativeness assessment are complete, slice 1.5 remains open.
+On 2026-11-13, `test/integration/test_checkpoint_wer.py` transcribed all four
+files through the production adapter and validation service in a Docker
+container with networking disabled. It checked the recording hashes and
+confirmed that the structured reference sentences match the user-validated
+scripts. The host then normalized both texts using NeMo TN 1.2.0 and scored
+them with JiWER 4.0.0. The agreed gate is WER at or below 3% **per file**,
+plus no aligned differences in the selected `no`, `not`, `never`, `non`, and
+`mai` negation tokens.
+
+| Recording | Reference words | Substitutions | Deletions | Insertions | WER | Negation differences |
+|---|---:|---:|---:|---:|---:|---:|
+| English WAV | 696 | 5 | 0 | 5 | 1.44% | 0 |
+| English MP3 | 696 | 6 | 0 | 4 | 1.44% | 0 |
+| Italian WAV | 148 | 1 | 0 | 0 | 0.68% | 0 |
+| Italian MP3 | 148 | 0 | 0 | 0 | 0.00% | 0 |
+
+All four passed the gate. English errors include `Elena`/`Elina`,
+`wave`/`WAV`, one `timestamps`/`time stamps` difference and one `a`/`the`
+substitution; two date formatting differences contribute edits because NeMo
+expands `14 April` and `27 May` to ordinal phrases. Italian WAV contains
+`riletta`/`diletta`. Consequently the WER is a score under this normalization
+policy, not a count of semantic ASR errors.
+
+The evaluator preserves numeric punctuation, currency symbols and signs after
+normalization and checks representative normalized amounts/signs. NeMo warns
+that the full English text exceeds 500 words; it completed successfully in this
+run. The selected-token negation check uses word alignment and can miss other
+negation forms, changed scope or semantic errors. The test uses synthetic
+single-speaker recordings, not an estimate of performance for real meetings.
+Generated timing boundaries remain unverified; detailed timing evaluation is
+deferred until needed for speaker alignment. The earlier browser and
+cancellation checks above were not repeated as part of this WER run.
