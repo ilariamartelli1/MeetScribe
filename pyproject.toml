@@ -19,10 +19,13 @@ cuda = [
 ]
 dev = [
     "httpx==0.28.1",
+    "jiwer==4.0.0",
     "mypy==1.15.0",
+    "nemo-text-processing==1.2.0",
     "playwright==1.56.0",
     "pytest==8.3.5",
     "ruff==0.11.13",
+    "wetextprocessing",
 ]
 
 [tool.pytest.ini_options]
@@ -35,3 +38,6 @@ files = ["app", "test"]
 
 [tool.ruff]
 target-version = "py312"
+
+[tool.uv.sources]
+wetextprocessing = { git = "https://github.com/wenet-e2e/WeTextProcessing.git", rev = "94ab845bc83330a4819a799831462d6f7a7b93ab" }
