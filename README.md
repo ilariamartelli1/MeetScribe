@@ -95,7 +95,7 @@ non-sensitive recordings.
 
 ## GPU transcription feasibility
 
-The feasibility check uses faster-whisper 1.2.1, CTranslate2 4.8.5, PyAV 18.1.0, NVIDIA cuBLAS 12.9.3.13 and cuDNN 9.28.1.4. PyAV is pinned below 19 because faster-whisper 1.2.1 uses an `av.open` argument removed in PyAV 19. The CUDA libraries are installed in the app image, not required for the local CPU unit tests.
+The app image uses faster-whisper 1.2.1, CTranslate2 4.8.5, PyAV 18.1.0, NVIDIA cuBLAS 12.8.4.1 and cuDNN 9.10.2.21. PyAV is pinned below 19 because faster-whisper 1.2.1 uses an `av.open` argument removed in PyAV 19. The CUDA libraries are installed in the app image, not required for the local CPU unit tests.
 
 Provision the public [CTranslate2-converted large-v3-turbo model](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2) separately. This downloads approximately 1.6 GB into the gitignored `models/` directory; it does not require a token:
 
@@ -159,7 +159,7 @@ meetings. See [the checkpoint report](docs/sprint-1-checkpoint.md) for results.
 
 ## Timestamped transcription contract
 
-`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It checks the weights SHA-256, requires an explicit `cuda` or `cpu` device and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It checks the weights SHA-256, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
 
 The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
 
@@ -174,7 +174,8 @@ On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and
 ## Diarization feasibility setup
 
 The Community-1 feasibility check uses a locally provisioned model and a
-CPU-only PyTorch stack; it does not yet add speaker labels to the application.
+CUDA-enabled PyTorch stack that can also run on CPU; it does not yet add
+speaker labels to the application.
 The model is gated. Review and accept its terms at
 <https://huggingface.co/pyannote/speaker-diarization-community-1> and configure
 a Hugging Face token authorized to read it. Do not put tokens in the
@@ -194,7 +195,7 @@ The check verifies SHA-256 digests before loading. The local pipeline runs
 without a token or network access, with `PYANNOTE_METRICS_ENABLED=0` and
 Hugging Face telemetry disabled. The model's CC-BY-4.0 terms and citations
 are described in its [model card](https://huggingface.co/pyannote/speaker-diarization-community-1).
-The app image installs pyannote.audio 4.0.0, CPU PyTorch/torchaudio 2.8.0,
+The app image installs pyannote.audio 4.0.0, CUDA 12.8 PyTorch/torchaudio 2.8.0,
 TorchCodec 0.7.0 and FFmpeg; the Python dependencies are locked. The Dockerfile
 pins FFmpeg to Debian package `7:5.1.9-0+deb12u1`, but system dependencies and
 future package availability are not guaranteed to remain unchanged.
@@ -207,12 +208,22 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s \
 ```
 
 The test uses the app image, `--network none`, read-only model/audio mounts,
-two PyTorch threads and a 6 GiB container limit. It repeats GPU transcription
-followed by CPU diarization on synthetic WAV and MP3, checks ordinary and
-exclusive output, and samples memory. The successful short-input run observed
-substantial system swap use. A separate nearly five-minute synthetic run also
-completed, but adequate desktop headroom remains unverified. The test does not
-measure speaker-label accuracy. See
+two PyTorch threads and a 6 GiB container limit. It repeats transcription
+followed by diarization on synthetic WAV and MP3 in both GPU and CPU modes,
+checks ordinary and exclusive output and samples memory. CPU mode uses a
+container without GPU access; GPU mode fails explicitly if CUDA is unavailable.
+To run just the CPU and unavailable-GPU checks on a machine without a GPU:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s \
+  test/integration/test_diarization_feasibility.py -k 'cpu or fails_without_gpu'
+```
+
+These are test-runner device selections, not diarization settings exposed by
+the application. The earlier CPU short-input run observed
+substantial system swap use. A separate nearly five-minute synthetic MP3
+completed in both CPU and GPU modes; adequate desktop headroom and 30-minute
+capacity remain unverified. The test does not measure speaker-label accuracy. See
 [the feasibility report](docs/sprint-2-diarization-feasibility.md) for results,
 attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR` and
 `MEETSCRIBE_DIARIZATION_MODEL_DIR`.
@@ -253,7 +264,7 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q test/integration/test
 
 ## Measured development-host result
 
-On November 7, 2026, the offline check passed with a 3.531-second synthetic speech sample in both formats on Linux Mint 22.1, an RTX 4050 Laptop GPU (6,141 MiB), NVIDIA driver 580.159.03, NVIDIA Container Toolkit 1.20.1, Docker 29.6.1 and Compose 5.3.0. The image used Python 3.12.3, the dependency versions above, CUDA NVRTC 12.9.86, ONNX Runtime 1.31.1 and PyAV's bundled FFmpeg libraries (`libavcodec` 62.28.102, `libavformat` 62.12.102, `libavutil` 60.26.102). The pinned base image and uv image digests are in the Dockerfile; the tested local app image ID was `sha256:ac03ea7d3edaf1aa384443f91641829276f82c5a5589cc742438e41733d9d513`. Host drivers and toolkit are observed prerequisites, not managed by the image.
+On November 7, 2026, the offline check passed with a 3.531-second synthetic speech sample in both formats on Linux Mint 22.1, an RTX 4050 Laptop GPU (6,141 MiB), NVIDIA driver 580.159.03, NVIDIA Container Toolkit 1.20.1, Docker 29.6.1 and Compose 5.3.0. The historical image used Python 3.12.3, cuBLAS 12.9.3.13, cuDNN 9.28.1.4, CUDA NVRTC 12.9.86, ONNX Runtime 1.31.1 and PyAV's bundled FFmpeg libraries (`libavcodec` 62.28.102, `libavformat` 62.12.102, `libavutil` 60.26.102). Its NVIDIA library versions differ from the current image. The pinned base image and uv image digests are in the Dockerfile; the tested local app image ID was `sha256:ac03ea7d3edaf1aa384443f91641829276f82c5a5589cc742438e41733d9d513`. Host drivers and toolkit are observed prerequisites, not managed by the image.
 
 | Job | Model load | WAV decode / inference | MP3 decode / inference | Unload |
 |---|---:|---:|---:|---:|

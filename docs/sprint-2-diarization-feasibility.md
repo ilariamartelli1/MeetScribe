@@ -2,11 +2,12 @@
 
 ## Status and scope
 
-The provisioned app image ran GPU ASR followed by CPU Community-1 diarization
-offline, twice each on a 3.531-second synthetic single-speaker WAV and MP3.
-Both ordinary and exclusive speaker turns were returned. This verifies stack
-compatibility on these inputs, not speaker-count or diarization accuracy.
-Speaker labels are not yet integrated into the app.
+The current app image ran offline ASR followed by Community-1 diarization on
+CUDA, and then separately on CPU without GPU access, twice each on a
+3.531-second synthetic single-speaker WAV and MP3. Both ordinary and exclusive
+speaker turns were returned. This verifies stack compatibility on these inputs,
+not speaker-count or diarization accuracy. Speaker labels are not yet
+integrated into the app.
 
 The resource/headroom portion of slice 2.1 remains open: the machine already
 used substantial swap, and system swap grew during the runs. An additional
@@ -50,7 +51,7 @@ PyTorch's restricted checkpoint loader requires an explicit allowlist of three
 pyannote task classes for these verified checkpoints. This does not make
 arbitrary checkpoints safe to load.
 
-## Tested stack and limits
+## Historical CPU-diarization stack and limits
 
 The image used pyannote.audio 4.0.0, PyTorch 2.8.0+cpu, torchaudio 2.8.0+cpu,
 TorchCodec 0.7.0 and Debian FFmpeg `7:5.1.9-0+deb12u1`. FFmpeg is now pinned
@@ -132,7 +133,91 @@ apply as above. The pipeline also emitted PyTorch warnings about standard
 deviation with insufficient degrees of freedom; the test checked nonempty
 outputs, not whether those warnings affected accuracy.
 
-After provisioning as described in the README, the longer run can be
+These are historical CPU-diarization measurements from commit `4224dfd`.
+The current runner selects the same device for ASR and diarization, so its CPU
+mode does not reproduce this mixed GPU-ASR/CPU-diarization run. See the README
+for provisioning and the current opt-in test commands.
+
+## CUDA-enabled stack: short-input check
+
+The current image uses PyTorch and torchaudio 2.8.0+cu128, pyannote.audio
+4.0.0, TorchCodec 0.7.0, FFmpeg `7:5.1.9-0+deb12u1`, cuBLAS 12.8.4.1 and
+cuDNN 9.10.2.21. The NVIDIA libraries differ from the historical run above.
+The runner selects CUDA or CPU for both stages, unloads ASR before diarization,
+and checks the diarization pipeline, segmentation model and embedding device.
+CUDA-unavailable mode fails explicitly; CPU mode ran in a container without
+GPU access. On CPU, CTranslate2 resolves `int8` to `int8_float32` on this
+host, so the app now requests and verifies `int8_float32` explicitly.
+
+Both formats were processed twice in each mode with a 6 GiB container limit,
+four CPUs and two PyTorch threads. Timings include model loading, decoding,
+inference and cleanup; they are not isolated inference benchmarks.
+
+| Job | CUDA ASR / diarization (seconds) | CPU ASR / diarization (seconds) |
+|---|---:|---:|
+| WAV 1 | 3.83 / 1.82 | 10.22 / 2.27 |
+| MP3 1 | 3.37 / 0.46 | 10.53 / 1.19 |
+| WAV 2 | 3.77 / 0.43 | 10.54 / 1.18 |
+| MP3 2 | 3.30 / 0.44 | 9.97 / 1.20 |
+
+| CUDA run observation | GPU MiB | Host used estimate MiB | System swap used MiB | Container MiB |
+|---|---:|---:|---:|---:|
+| Baseline | 61 | 8,285 | 3,969 | 480 |
+| Peak across ASR stages | 1,339 | 11,388 | 3,971 | 3,956 |
+| Peak across diarization stages | 343 | 10,301 | 3,971 | 2,853 |
+| After final diarization | 211 | 10,265 | 3,971 | 2,852 |
+
+Each column's peak may occur at a different instant, and system-wide and
+sampling limitations described above apply. The test did not disable container
+swap. The synthetic outputs are not a diarization accuracy assessment.
+
+After the dependency change, the four-recording GPU ASR checkpoint passed:
+English WAV 1.72%, English MP3 1.44%, Italian WAV 0.68% and Italian MP3
+0.00% WER, with no selected-negation differences. This does not establish
+accuracy on real meetings.
+
+## CPU/GPU comparison: nearly five-minute MP3
+
+The versioned `test/data/checkpoint/english/meeting-en.mp3` is a synthetic,
+single-speaker recording lasting 297.38 seconds (4:57). Its SHA-256 is
+`ef3d4e68a1be6e18fc08788d08e363e3b75f6246a510ae488f10543dde4db69c`.
+It was run once per device on the same host and current CUDA-enabled image,
+with CPU and GPU runs sequential rather than concurrent. Both stages used
+the selected device; CPU mode had no GPU exposed. The host was an RTX 4050
+Laptop GPU (6,141 MiB VRAM) with approximately 15 GiB system RAM. Each
+container had four CPUs, two PyTorch threads and a 6 GiB memory limit with
+container swap disabled. ASR used `int8_float32` on CPU and `int8_float16`
+on CUDA. These are one-run observations, not statistically stable benchmarks.
+
+| Stage | CPU | GPU | CPU / GPU time |
+|---|---:|---:|---:|
+| Transcription | 89.07 s | 9.74 s | 9.1× |
+| Diarization | 264.20 s | 16.30 s | 16.2× |
+| Sum of stages | 353.27 s | 26.04 s | 13.6× |
+
+These are elapsed stage times, including model loading, decoding, inference
+and cleanup; the sum is not total wall-clock time, because it excludes process
+startup and the separate TorchCodec check. CUDA is synchronized before timing
+diarization completion. Both runs returned 12 ordinary and four exclusive
+turns, but counts alone do not measure whether speakers were identified
+correctly. The CPU and GPU runs both emitted PyTorch warnings about standard
+deviation with insufficient degrees of freedom; accuracy was not evaluated.
+
+| Observation | CPU host MiB | CPU swap MiB | CPU container MiB | GPU host MiB | GPU swap MiB | GPU container MiB | GPU VRAM MiB |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Baseline | 8,519 | 3,728 | 463 | 8,714 | 3,733 | 479 | 61 |
+| ASR stage peak | 11,335 | 3,728 | 2,906 | 10,709 | 3,733 | 2,219 | 1,353 |
+| Diarization stage peak | 11,680 | 3,720 | 3,285 | 10,704 | 3,733 | 2,255 | 2,201 |
+| After diarization | 10,200 | 3,713 | 2,039 | 10,680 | 3,732 | 2,255 | 211 |
+
+The host and swap figures cover the whole computer, and the container figures
+include cache. Each column's peak may occur at a different instant. Sampling
+every approximately 0.2 seconds can miss peaks; CPU mode did not measure GPU
+memory. Neither run used container swap, but system swap was already occupied
+by other activity. These observations do not establish capacity or accuracy
+for 30-minute meetings or prove responsiveness under every desktop workload.
+
+After provisioning the models as described in the README, the GPU run can be
 repeated with:
 
 ```sh
@@ -140,11 +225,10 @@ docker compose build app
 docker run --rm --network none --gpus all --memory 6g --memory-swap 6g --cpus 4 \
   --mount "type=bind,src=$PWD/models/faster-whisper-large-v3-turbo,dst=/model,readonly" \
   --mount "type=bind,src=$PWD/models/pyannote-community-1,dst=/diarization,readonly" \
-  --mount "type=bind,src=$PWD/test/data/checkpoint/english/meeting-en.wav,dst=/audio/synthetic-meeting.wav,readonly" \
   --mount "type=bind,src=$PWD/test/data/checkpoint/english/meeting-en.mp3,dst=/audio/synthetic-meeting.mp3,readonly" \
   --mount "type=bind,src=$PWD/test/src,dst=/checks,readonly" \
   --env PYTHONPATH=/app:/checks --entrypoint python meetscribe-app \
-  /checks/diarization_feasibility.py
+  /checks/diarization_feasibility.py --device cuda --format mp3 --runs-per-format 1
 ```
 
-See the README for provisioning and the opt-in short-input test command.
+For CPU mode, omit `--gpus all` and replace `--device cuda` with `--device cpu`.

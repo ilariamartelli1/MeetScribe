@@ -14,8 +14,8 @@ dependencies = [
 
 [dependency-groups]
 cuda = [
-    "nvidia-cublas-cu12==12.9.3.13",
-    "nvidia-cudnn-cu12==9.28.1.4",
+    "nvidia-cublas-cu12==12.8.4.1",
+    "nvidia-cudnn-cu12==9.10.2.21",
 ]
 diarization = [
     "pyannote-audio==4.0.0",
@@ -47,10 +47,10 @@ target-version = "py312"
 
 [tool.uv.sources]
 wetextprocessing = { git = "https://github.com/wenet-e2e/WeTextProcessing.git", rev = "94ab845bc83330a4819a799831462d6f7a7b93ab" }
-torch = { index = "pytorch-cpu" }
-torchaudio = { index = "pytorch-cpu" }
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
 
 [[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
