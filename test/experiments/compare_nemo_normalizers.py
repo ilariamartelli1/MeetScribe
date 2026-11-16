@@ -11,10 +11,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-from nemo_text_processing.inverse_text_normalization.inverse_normalize import (  # type: ignore[import-not-found]
+from nemo_text_processing.inverse_text_normalization.inverse_normalize import (  # type: ignore[import-untyped]
     InverseNormalizer,
 )
-from nemo_text_processing.text_normalization.normalize import Normalizer  # type: ignore[import-not-found]
+from nemo_text_processing.text_normalization.normalize import Normalizer  # type: ignore[import-untyped]
 
 
 def canonicalize(text: str) -> str:
