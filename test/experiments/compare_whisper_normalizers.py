@@ -10,10 +10,10 @@ from typing import Any, Callable
 from compare_text_normalizers import CASES, Case, canonicalize, text2num_normalizer  # type: ignore[import-not-found]
 from itn.english.inverse_normalizer import InverseNormalizer as EnglishITN  # type: ignore[import-untyped]
 from itn.italian.inverse_normalizer import InverseNormalizer as ItalianITN  # type: ignore[import-untyped]
-from nemo_text_processing.inverse_text_normalization.inverse_normalize import (  # type: ignore[import-not-found]
+from nemo_text_processing.inverse_text_normalization.inverse_normalize import (  # type: ignore[import-untyped]
     InverseNormalizer as NemoITN,
 )
-from nemo_text_processing.text_normalization.normalize import (  # type: ignore[import-not-found]
+from nemo_text_processing.text_normalization.normalize import (  # type: ignore[import-untyped]
     Normalizer as NemoTN,
 )
 from tn.english.normalizer import Normalizer as EnglishTN  # type: ignore[import-untyped]
