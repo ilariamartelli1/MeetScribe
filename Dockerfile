@@ -5,13 +5,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_NO_MANAGED_PYTHON=1 \
     HF_HUB_OFFLINE=1 \
-    HF_HUB_DISABLE_TELEMETRY=1
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    PYANNOTE_METRICS_ENABLED=0 \
+    OMP_NUM_THREADS=2 \
+    MKL_NUM_THREADS=2
 
 WORKDIR /app
 COPY --from=uv /uv /usr/local/bin/uv
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg=7:5.1.9-0+deb12u1 \
+    && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --group cuda --no-install-project
+    uv sync --locked --no-dev --group cuda --group diarization --no-install-project
 COPY app ./app
 
 ENV PATH="/app/.venv/bin:${PATH}" \

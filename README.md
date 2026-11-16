@@ -171,6 +171,52 @@ The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in 
 
 On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and "No. Non siamo pronti." with no missed reference negations; silence was rejected. This small synthetic sample is not a quality benchmark, and quiet speech can still be missed in real recordings. Use only synthetic or explicitly authorized non-sensitive audio.
 
+## Diarization feasibility setup
+
+The Community-1 feasibility check uses a locally provisioned model and a
+CPU-only PyTorch stack; it does not yet add speaker labels to the application.
+The model is gated. Review and accept its terms at
+<https://huggingface.co/pyannote/speaker-diarization-community-1> and configure
+a Hugging Face token authorized to read it. Do not put tokens in the
+repository, Docker image, or chat. Provision the exact model revision:
+
+```sh
+HF_HUB_DISABLE_TELEMETRY=1 uv run --locked hf download \
+  pyannote/speaker-diarization-community-1 \
+  --revision 3533c8cf8e369892e6b79ff1bf80f7b0286a54ee \
+  --include 'config.yaml' 'segmentation/pytorch_model.bin' \
+    'embedding/pytorch_model.bin' 'plda/*.npz' \
+  --local-dir models/pyannote-community-1
+```
+
+The model files stay in the gitignored `models/` directory, mounted read-only.
+The check verifies SHA-256 digests before loading. The local pipeline runs
+without a token or network access, with `PYANNOTE_METRICS_ENABLED=0` and
+Hugging Face telemetry disabled. The model's CC-BY-4.0 terms and citations
+are described in its [model card](https://huggingface.co/pyannote/speaker-diarization-community-1).
+The app image installs pyannote.audio 4.0.0, CPU PyTorch/torchaudio 2.8.0,
+TorchCodec 0.7.0 and FFmpeg; the Python dependencies are locked. The Dockerfile
+pins FFmpeg to Debian package `7:5.1.9-0+deb12u1`, but system dependencies and
+future package availability are not guaranteed to remain unchanged.
+
+Run the opt-in feasibility check on an NVIDIA GPU host:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s \
+  test/integration/test_diarization_feasibility.py
+```
+
+The test uses the app image, `--network none`, read-only model/audio mounts,
+two PyTorch threads and a 6 GiB container limit. It repeats GPU transcription
+followed by CPU diarization on synthetic WAV and MP3, checks ordinary and
+exclusive output, and samples memory. The successful short-input run observed
+substantial system swap use. A separate nearly five-minute synthetic run also
+completed, but adequate desktop headroom remains unverified. The test does not
+measure speaker-label accuracy. See
+[the feasibility report](docs/sprint-2-diarization-feasibility.md) for results,
+attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR` and
+`MEETSCRIBE_DIARIZATION_MODEL_DIR`.
+
 ## Temporary transcription jobs
 
 `TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. `FasterWhisperJob` constructs and unloads the model in that child. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
