@@ -9,6 +9,7 @@ from test.src.asr_image import IMAGE_NAME, PROJECT_ROOT, build_asr_image
 
 
 def test_build_asr_image_uses_project_compose_configuration() -> None:
+    EXPECTED_IMAGE_BUILD_TIMEOUT_SECONDS = 2400
     with patch("test.src.asr_image.subprocess.run") as run:
         image = build_asr_image()
 
@@ -25,7 +26,7 @@ def test_build_asr_image_uses_project_compose_configuration() -> None:
         ],
         cwd=PROJECT_ROOT,
         check=True,
-        timeout=1200,
+        timeout=EXPECTED_IMAGE_BUILD_TIMEOUT_SECONDS,
     )
     assert image == IMAGE_NAME == "meetscribe-app"
 
