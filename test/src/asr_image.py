@@ -21,6 +21,6 @@ def build_asr_image() -> str:
         ],
         cwd=PROJECT_ROOT,
         check=True,
-        timeout=600,
+        timeout=1200,
     )
     return IMAGE_NAME

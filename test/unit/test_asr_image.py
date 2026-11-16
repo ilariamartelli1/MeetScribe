@@ -25,7 +25,7 @@ def test_build_asr_image_uses_project_compose_configuration() -> None:
         ],
         cwd=PROJECT_ROOT,
         check=True,
-        timeout=600,
+        timeout=1200,
     )
     assert image == IMAGE_NAME == "meetscribe-app"
 
