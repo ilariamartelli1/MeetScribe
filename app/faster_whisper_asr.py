@@ -2,13 +2,19 @@ import hashlib
 import math
 from importlib.metadata import version
 from pathlib import Path
-from typing import Literal
-
 import ctranslate2  # type: ignore[import-untyped]
 from faster_whisper import WhisperModel  # type: ignore[import-untyped]
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
+from app.asr_contract import (
+    CPU_DEVICE,
+    CUDA_DEVICE,
+    Device,
+    Language,
+    ModelProvenance,
+    Transcript,
+    TranscriptSegment,
+)
 
 MODEL_REVISION = "4df90f75321148c3a29a9e2351b7ddf8f5b115a8"
 MODEL_SHA256 = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
@@ -16,12 +22,13 @@ SAMPLE_RATE = 16000
 BEAM_SIZE = 5
 VAD_ENABLED = True
 CONDITION_ON_PREVIOUS_TEXT = False
-Device = Literal["cpu", "cuda"]
+CUDA_COMPUTE_TYPE = "int8_float16"
+CPU_COMPUTE_TYPE = "int8_float32"
 
 
 class FasterWhisperTranscriber:
     def __init__(self, model_dir: Path, device: Device) -> None:
-        if device not in ("cpu", "cuda"):
+        if device not in (CPU_DEVICE, CUDA_DEVICE):
             raise ValueError("Device must be explicitly set to 'cuda' or 'cpu'.")
         model_dir = model_dir.resolve()
         for name in (
@@ -37,10 +44,10 @@ class FasterWhisperTranscriber:
         with (model_dir / "model.bin").open("rb") as model_file:
             if hashlib.file_digest(model_file, "sha256").hexdigest() != MODEL_SHA256:
                 raise ValueError("Model weights do not match the pinned SHA-256.")
-        if device == "cuda" and ctranslate2.get_cuda_device_count() < 1:
+        if device == CUDA_DEVICE and ctranslate2.get_cuda_device_count() < 1:
             raise RuntimeError("CUDA GPU unavailable; CPU fallback is disabled.")
 
-        compute_type = "int8_float16" if device == "cuda" else "int8"
+        compute_type = CUDA_COMPUTE_TYPE if device == CUDA_DEVICE else CPU_COMPUTE_TYPE
         self._model = WhisperModel(
             str(model_dir),
             device=device,

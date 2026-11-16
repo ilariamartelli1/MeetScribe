@@ -49,6 +49,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
         (100, 500, "non")
     ]
     assert transcript.provenance.device == "cuda"
+    assert transcript.provenance.compute_type == "int8_float16"
     assert transcript.provenance.model_revision == adapter.MODEL_REVISION
     assert model.transcribe.call_args.kwargs == {
         "language": "it",
@@ -58,6 +59,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
         "condition_on_previous_text": False,
     }
     assert constructor.call_args.kwargs["local_files_only"] is True
+    assert constructor.call_args.kwargs["compute_type"] == "int8_float16"
     assert (
         transcript.provenance.beam_size
         == model.transcribe.call_args.kwargs["beam_size"]
@@ -74,15 +76,36 @@ def test_cpu_is_explicit_and_silence_is_rejected(
 ) -> None:
     model = Mock()
     model.model.device = "cpu"
-    model.model.compute_type = "int8"
+    model.model.compute_type = "int8_float32"
     constructor = Mock(return_value=model)
     monkeypatch.setattr(adapter, "WhisperModel", constructor)
     monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [])
     transcriber = adapter.FasterWhisperTranscriber(model_dir, "cpu")
-    assert constructor.call_args.kwargs["compute_type"] == "int8"
+    assert constructor.call_args.kwargs["compute_type"] == "int8_float32"
     with pytest.raises(NoSpeechError):
         TranscriptionService(transcriber).transcribe(Path("silent.wav"))
     model.transcribe.assert_not_called()
+
+
+def test_cpu_transcription_records_effective_compute_type(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = Mock()
+    model.model.device = "cpu"
+    model.model.compute_type = "int8_float32"
+    model.transcribe.return_value = (
+        iter([SimpleNamespace(start=0.1, end=0.5, text="hello")]),
+        None,
+    )
+    monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
+    monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [0] * 16000)
+
+    transcript = TranscriptionService(
+        adapter.FasterWhisperTranscriber(model_dir, "cpu")
+    ).transcribe(Path("speech.wav"))
+
+    assert transcript.provenance.device == "cpu"
+    assert transcript.provenance.compute_type == "int8_float32"
 
 
 def test_missing_gpu_and_wrong_model_are_rejected(
@@ -103,7 +126,7 @@ def test_close_unloads_once_and_rejects_later_transcription(
 ) -> None:
     model = Mock()
     model.model.device = "cpu"
-    model.model.compute_type = "int8"
+    model.model.compute_type = "int8_float32"
     monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
     transcriber = adapter.FasterWhisperTranscriber(model_dir, "cpu")
     transcriber.close()
@@ -135,7 +158,7 @@ def test_silence_with_no_segments_and_nonfinite_timestamps_fail(
 ) -> None:
     model = Mock()
     model.model.device = "cpu"
-    model.model.compute_type = "int8"
+    model.model.compute_type = "int8_float32"
     monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
     monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [0] * 16000)
     transcriber = adapter.FasterWhisperTranscriber(model_dir, "cpu")
@@ -155,7 +178,7 @@ def test_out_of_bounds_segments_are_rejected_without_clamping_or_retry(
 ) -> None:
     model = Mock()
     model.model.device = "cpu"
-    model.model.compute_type = "int8"
+    model.model.compute_type = "int8_float32"
     model.transcribe.return_value = (
         iter([SimpleNamespace(start=0.1, end=1.5, text="wrong")]),
         None,
