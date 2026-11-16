@@ -2,11 +2,13 @@ import os
 import subprocess
 import sys
 
+from app.asr_contract import CPU_DEVICE, CUDA_DEVICE
+
 
 def check_device(device: str) -> None:
-    if device == "cpu":
+    if device == CPU_DEVICE:
         return
-    if device != "cuda":
+    if device != CUDA_DEVICE:
         raise ValueError("MEETSCRIBE_DEVICE must be 'cuda' or 'cpu'.")
 
     try:

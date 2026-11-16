@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Final, Literal, Protocol
 
+CPU_DEVICE: Final = "cpu"
+CUDA_DEVICE: Final = "cuda"
+Device = Literal["cpu", "cuda"]
 Language = Literal["en", "it"]
 
 

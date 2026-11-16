@@ -5,12 +5,13 @@ import tempfile
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
+from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
 from app.config import Settings
 from app.transcription_jobs import (
     CoordinatorClosedError,
@@ -57,12 +58,12 @@ async def run_until_finished(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    configured_device = os.environ.get("MEETSCRIBE_DEVICE", "cuda")
-    device: Literal["cpu", "cuda"]
-    if configured_device == "cpu":
-        device = "cpu"
-    elif configured_device == "cuda":
-        device = "cuda"
+    configured_device = os.environ.get("MEETSCRIBE_DEVICE", CUDA_DEVICE)
+    device: Device
+    if configured_device == CPU_DEVICE:
+        device = CPU_DEVICE
+    elif configured_device == CUDA_DEVICE:
+        device = CUDA_DEVICE
     else:
         raise ValueError("MEETSCRIBE_DEVICE must be 'cuda' or 'cpu'.")
     app.state.upload_dir = Path(tempfile.mkdtemp(prefix="meetscribe-uploads-"))

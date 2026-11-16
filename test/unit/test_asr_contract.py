@@ -4,7 +4,18 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from app.asr_contract import ModelProvenance, Transcript, TranscriptSegment
+from app.asr_contract import (
+    CPU_DEVICE,
+    CUDA_DEVICE,
+    ModelProvenance,
+    Transcript,
+    TranscriptSegment,
+)
+
+
+def test_device_values_match_external_interfaces() -> None:
+    assert CPU_DEVICE == "cpu"
+    assert CUDA_DEVICE == "cuda"
 
 
 def test_transcript_contract_is_immutable() -> None:
