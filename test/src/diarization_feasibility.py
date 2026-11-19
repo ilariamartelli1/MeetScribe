@@ -15,8 +15,9 @@ from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
 from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
 from app.asr_service import TranscriptionService
+from app.community1_diarizer import MODEL_MANIFEST
 from app.faster_whisper_asr import FasterWhisperTranscriber
-from diarization_model import verify_model  # type: ignore[import-not-found]
+from app.model_integrity import verify_model
 
 ASR_MODEL_DIR = Path("/model")
 DIARIZATION_MODEL_DIR = Path("/diarization")
@@ -79,7 +80,7 @@ def main(device: Device, formats: tuple[str, ...], runs_per_format: int) -> None
             "CUDA GPU unavailable for diarization; CPU fallback is disabled. "
             "Select --device cpu explicitly to use CPU."
         )
-    verify_model(DIARIZATION_MODEL_DIR)
+    verify_model(DIARIZATION_MODEL_DIR, MODEL_MANIFEST)
     torch.set_num_threads(TORCH_THREADS)
     torch.set_num_interop_threads(TORCH_THREADS)
     samples: list[dict[str, Any]] = []

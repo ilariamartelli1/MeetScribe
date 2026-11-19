@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from app.asr_contract import CUDA_DEVICE
-from test.src.diarization_model import verify_model
+from app.community1_diarizer import MODEL_MANIFEST
+from app.model_integrity import verify_model
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTAINER_MEMORY_LIMIT = "6g"
@@ -40,7 +41,7 @@ def test_offline_asr_then_diarization(
             str(ROOT / "models/pyannote-community-1"),
         )
     ).resolve(strict=True)
-    verify_model(diarization_model)
+    verify_model(diarization_model, MODEL_MANIFEST)
     completed = subprocess.run(
         [
             "docker",
