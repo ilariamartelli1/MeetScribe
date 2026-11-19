@@ -12,9 +12,11 @@ from pathlib import Path
 from typing import Literal
 
 from app.asr_contract import Language, Transcript
+from app.speaker_alignment import AttributedTranscript
 
 JobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
-TranscriptionJob = Callable[[Path, Language], Transcript]
+JobResult = Transcript | AttributedTranscript
+TranscriptionJob = Callable[[Path, Language], JobResult]
 logger = logging.getLogger(__name__)
 
 
@@ -28,13 +30,13 @@ class JobError:
 class JobSnapshot:
     job_id: str
     state: JobState
-    result: Transcript | None = None
+    result: JobResult | None = None
     error: JobError | None = None
 
 
 @dataclass(frozen=True)
 class _Outcome:
-    result: Transcript | None = None
+    result: JobResult | None = None
     error: JobError | None = None
 
 
@@ -381,7 +383,7 @@ class TranscriptionCoordinator:
                     snapshot = JobSnapshot(job_id, "cancelled")
                 elif outcome.error is not None:
                     snapshot = JobSnapshot(job_id, "failed", error=outcome.error)
-                elif isinstance(outcome.result, Transcript):
+                elif isinstance(outcome.result, (Transcript, AttributedTranscript)):
                     snapshot = JobSnapshot(job_id, "succeeded", result=outcome.result)
                 else:
                     snapshot = JobSnapshot(

@@ -13,6 +13,8 @@ from unittest.mock import patch
 import pytest
 
 from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
+from app.diarization_contract import Diarization, DiarizationProvenance, SpeakerTurn
+from app.speaker_alignment import AttributedTranscript, align_speakers
 from app.transcription_jobs import (
     CoordinatorClosedError,
     JobBusyError,
@@ -55,12 +57,66 @@ class FakeJob:
         )
 
 
+@dataclass(frozen=True)
+class FakeSpeakerJob:
+    directory: Path
+    mode: str = "success"
+
+    def __call__(self, audio_path: Path, language: Language) -> AttributedTranscript:
+        transcript = Transcript(
+            language, 1000, (TranscriptSegment(100, 500, "hello"),), PROVENANCE
+        )
+        (self.directory / "diarization-started").touch()
+        if self.mode == "wait":
+            while True:
+                time.sleep(0.01)
+        if self.mode == "error":
+            raise RuntimeError("Diarization failed")
+        diarization = Diarization(
+            1000,
+            (SpeakerTurn(100, 500, "A"),),
+            (SpeakerTurn(100, 500, "A"),),
+            DiarizationProvenance("fake", "1", "diarizer", "revision", "cpu"),
+        )
+        return align_speakers(transcript, diarization)
+
+
 def wait_for(predicate: Callable[[], bool], timeout: float = 10) -> None:
     deadline = time.monotonic() + timeout
     while not predicate():
         if time.monotonic() >= deadline:
             pytest.fail("Timed out waiting for the worker.")
         time.sleep(0.01)
+
+
+@pytest.mark.parametrize("mode", ["success", "wait", "error"])
+def test_speaker_job_result_failure_and_diarization_cancellation(
+    tmp_path: Path, mode: str
+) -> None:
+    audio = tmp_path / "managed.wav"
+    audio.touch()
+    coordinator = TranscriptionCoordinator(FakeSpeakerJob(tmp_path, mode))
+    try:
+        job_id = coordinator.submit(audio, cleanup_audio=True)
+        wait_for(lambda: (tmp_path / "diarization-started").exists())
+        if mode == "wait":
+            assert coordinator._active is not None
+            process, _ = coordinator._active
+            assert coordinator.cancel(job_id).state == "cancelled"
+            assert not process.is_alive()
+        else:
+            expected = "succeeded" if mode == "success" else "failed"
+            wait_for(lambda: coordinator.get(job_id).state == expected)
+            snapshot = coordinator.get(job_id)
+            if mode == "success":
+                assert isinstance(snapshot.result, AttributedTranscript)
+                assert snapshot.result.attributions[0].speaker == "Voice 1"
+            else:
+                assert snapshot.error is not None
+                assert snapshot.error.message == "Diarization failed"
+        assert not audio.exists()
+    finally:
+        coordinator.shutdown()
 
 
 def test_running_job_is_pollable_and_rejects_concurrent_work(tmp_path: Path) -> None:
