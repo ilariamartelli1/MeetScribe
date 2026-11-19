@@ -92,7 +92,7 @@ function applySnapshot(snapshot, jobId) {
   } else if (snapshot.state === "cancelling" || cancellationPending) {
     message("Cancelling job...");
   } else if (snapshot.state === "running") {
-    message("Transcribing...");
+    message("Transcribing and analyzing speakers...");
   } else {
     finish();
     showError("The server returned an unknown job state.");
@@ -154,7 +154,7 @@ form.addEventListener("submit", async (event) => {
       if (!response.ok) throw new Error(body.detail || `Upload failed (${response.status}).`);
       activeJob = body.job_id;
       setBusy(true);
-      message("Transcribing...");
+      message("Transcribing and analyzing speakers...");
       poll(activeJob);
       return;
     }
