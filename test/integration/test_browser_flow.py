@@ -29,7 +29,9 @@ UNTRUSTED = '<img src=x onerror="window.injected=true"> no'
 
 
 class FakeBrowserJob:
-    def __init__(self, model_dir: Path, device: str) -> None:
+    def __init__(
+        self, model_dir: Path, diarization_model_dir: Path, device: str
+    ) -> None:
         pass
 
     def __call__(self, audio_path: Path, language: Language) -> Transcript:
@@ -47,7 +49,7 @@ class FakeBrowserJob:
 
 @pytest.fixture
 def server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
-    monkeypatch.setattr(main, "FasterWhisperJob", FakeBrowserJob)
+    monkeypatch.setattr(main, "SpeakerAttributedJob", FakeBrowserJob)
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen()
@@ -177,7 +179,7 @@ def test_cancel_running_job(page: Page) -> None:
     page.route("**/api/v1/jobs**", handle)
     select_sample(page)
     page.get_by_role("button", name="Transcribe").click()
-    page.get_by_text("Transcribing...").wait_for()
+    page.get_by_text("Transcribing and analyzing speakers...").wait_for()
     page.get_by_role("button", name="Cancel job").click()
     page.get_by_text("Job cancelled.").wait_for()
     assert cancelled
@@ -187,7 +189,7 @@ def test_cancel_running_job(page: Page) -> None:
 def test_real_api_cancels_running_fake_job(page: Page) -> None:
     select_sample(page)
     page.get_by_role("button", name="Transcribe").click()
-    page.get_by_text("Transcribing...").wait_for()
+    page.get_by_text("Transcribing and analyzing speakers...").wait_for()
     page.get_by_role("button", name="Cancel job").click()
     page.get_by_text("Job cancelled.").wait_for()
     assert page.get_by_role("button", name="Transcribe").is_enabled()
@@ -213,7 +215,7 @@ def test_cancel_error_remains_visible_and_cancel_can_be_retried(page: Page) -> N
     page.route("**/api/v1/jobs**", handle)
     select_sample(page)
     page.get_by_role("button", name="Transcribe").click()
-    page.get_by_text("Transcribing...").wait_for()
+    page.get_by_text("Transcribing and analyzing speakers...").wait_for()
     page.get_by_role("button", name="Cancel job").click()
     page.get_by_role("alert").wait_for()
     page.wait_for_timeout(1200)

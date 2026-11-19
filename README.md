@@ -1,6 +1,6 @@
 # MeetScribe
 
-MeetScribe is a local, Dockerized meeting assistant in development. It will first transcribe short WAV/MP3 recordings in a browser, then add speaker labels, editable draft minutes, and saved meetings. Audio and transcripts will be processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
+MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings in a browser and provides experimental speaker attribution through its job API. Browser speaker labels, editable draft minutes, and saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
 **Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, edit transcripts, and download an unreviewed draft. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
@@ -84,7 +84,9 @@ Both configurations publish the app on `127.0.0.1:8000`, not a LAN interface. Se
 MEETSCRIBE_DOCKER_TESTS=1 uv run --locked python -m pytest -q test/integration/test_docker.py
 ```
 
-After starting the GPU configuration, open `http://127.0.0.1:8000/` in a browser.
+Provision both the transcription and Community-1 models as described below
+before starting a job. After starting the GPU configuration, open
+`http://127.0.0.1:8000/` in a browser.
 Select a mono or stereo WAV or MP3 (up to five minutes and 100 MB), choose its language,
 and transcribe. Review and edit the timestamped draft before downloading it as
 TXT. Cancel stops an active job; if the 16-result limit is reached, the page
@@ -174,8 +176,7 @@ On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and
 ## Diarization feasibility setup
 
 The Community-1 feasibility check uses a locally provisioned model and a
-CUDA-enabled PyTorch stack that can also run on CPU; it does not yet add
-speaker labels to the application.
+CUDA-enabled PyTorch stack that can also run on CPU.
 The model is gated. Review and accept its terms at
 <https://huggingface.co/pyannote/speaker-diarization-community-1> and configure
 a Hugging Face token authorized to read it. Do not put tokens in the
@@ -246,8 +247,8 @@ changing channel layouts or sample rates, and empty audio.
 speaker turns in milliseconds. Ordinary turns can overlap; exclusive turns
 cannot. Speaker IDs are anonymous labels within a recording, not people's
 names or persistent identities. An empty set of turns can indicate no speech.
-Call `close()` to release the model. Diarization is not yet attached to
-transcripts, exposed through the job API or displayed in the browser.
+Call `close()` to release the model. The job API includes speaker attribution;
+the browser and TXT export do not yet display or edit speaker labels.
 
 The opt-in offline GPU check exercises the real adapter with
 `test/data/smoke/two-voices.wav`: two alternating synthetic voices constructed
@@ -270,7 +271,21 @@ alternating intervals, but does not establish accuracy on real meetings.
 
 ## Temporary transcription jobs
 
-`TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. `FasterWhisperJob` constructs and unloads the model in that child. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
+`TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. The application uses `SpeakerAttributedJob`: it transcribes first, unloads the ASR model, then runs and unloads diarization on the same explicitly selected device. A missing model, device, or failed stage fails the job; no partial transcript or silent fallback is returned. Both provisioned model directories must be readable by the app. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
+
+The result retains the original `segments` and ASR `provenance`, and adds `diarization` (including ordinary overlapping turns, exclusive turns, and model provenance) and a parallel `attributions` array. Each attribution has the original segment's `start_ms`, `end_ms` and a `speaker` label or `null` for unknown. Labels such as `Voice 1` are assigned by first diarized appearance within that recording; simultaneous first appearances are ordered by model speaker ID. A segment receives a label only when its time overlaps exactly one distinct speaker in ordinary diarization; no overlap or multiple speakers produces `null`. Even one overlap may be wrong if timestamps or diarization are inaccurate. The approach does not split segments, assign individual words, identify people, or guarantee speaker accuracy. Alignment fails if independently decoded durations differ by more than 20 ms.
+
+The opt-in offline GPU check exercises the full job with the two-voice fixture:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q \
+  test/integration/test_speaker_alignment.py
+```
+
+It checks for a consistently distinct label overlapping at least 80% of each
+source-clip interval. These intervals include source silence, and the ASR
+segments can extend into adjacent silence; this check does not verify
+word-level timing or accuracy on real meetings.
 
 When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The browser asks for confirmation and retries with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. The limit bounds the number of retained results, not their individual size.
 
