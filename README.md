@@ -85,7 +85,7 @@ MEETSCRIBE_DOCKER_TESTS=1 uv run --locked python -m pytest -q test/integration/t
 ```
 
 After starting the GPU configuration, open `http://127.0.0.1:8000/` in a browser.
-Select a mono WAV or MP3 (up to five minutes and 100 MB), choose its language,
+Select a mono or stereo WAV or MP3 (up to five minutes and 100 MB), choose its language,
 and transcribe. Review and edit the timestamped draft before downloading it as
 TXT. Cancel stops an active job; if the 16-result limit is reached, the page
 asks before replacing the oldest result. Results are temporary, and edits are
@@ -107,7 +107,7 @@ HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_IMPLICIT_TOKEN=1 \
   --local-dir models/faster-whisper-large-v3-turbo
 ```
 
-The model card identifies the converted model as MIT-licensed. Its pinned `model.bin` SHA-256 is `e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da`; the check verifies this hash before loading. The faster-whisper and CTranslate2 projects are MIT-licensed, PyAV is BSD-licensed, and NVIDIA CUDA libraries have NVIDIA license terms. Review licenses before distribution.
+The model card identifies the converted model as MIT-licensed. The versioned manifest at `app/model_manifests/faster_whisper.toml` pins its revision and the SHA-256 of every required artifact; the optional `vocabulary.json` is checked when present. The shared verifier checks them before loading. The faster-whisper and CTranslate2 projects are MIT-licensed, PyAV is BSD-licensed, and NVIDIA CUDA libraries have NVIDIA license terms. Review licenses before distribution.
 
 The repository includes a short synthetic English sample in WAV and MP3 at `test/data/smoke/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
 
@@ -159,7 +159,7 @@ meetings. See [the checkpoint report](docs/sprint-1-checkpoint.md) for results.
 
 ## Timestamped transcription contract
 
-`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It checks the weights SHA-256, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
 
 The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
 
@@ -191,7 +191,9 @@ HF_HUB_DISABLE_TELEMETRY=1 uv run --locked hf download \
 ```
 
 The model files stay in the gitignored `models/` directory, mounted read-only.
-The check verifies SHA-256 digests before loading. The local pipeline runs
+The shared verifier checks SHA-256 digests from
+`app/model_manifests/community1.toml` before loading. These manifests are
+versioned with the app, not supplied by the downloaded model. The local pipeline runs
 without a token or network access, with `PYANNOTE_METRICS_ENABLED=0` and
 Hugging Face telemetry disabled. The model's CC-BY-4.0 terms and citations
 are described in its [model card](https://huggingface.co/pyannote/speaker-diarization-community-1).
@@ -228,6 +230,44 @@ capacity remain unverified. The test does not measure speaker-label accuracy. Se
 attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR` and
 `MEETSCRIBE_DIARIZATION_MODEL_DIR`.
 
+## Speaker-turn adapter
+
+`Diarizer` in `app/diarization_contract.py` is a replaceable interface.
+`Community1Diarizer` loads the verified local model and explicitly selects
+`cuda` or `cpu`; CUDA failures never silently fall back to CPU. Its caller
+must enable `HF_HUB_OFFLINE=1`, `HF_HUB_DISABLE_TELEMETRY=1` and
+`PYANNOTE_METRICS_ENABLED=0` before loading the model. The Docker image
+already sets these values.
+
+The adapter independently decodes the original recording to mono 16 kHz audio,
+mixing stereo channels. It rejects multiple streams, more than two channels,
+changing channel layouts or sample rates, and empty audio.
+`DiarizationService` validates the returned timestamps and exposes immutable
+speaker turns in milliseconds. Ordinary turns can overlap; exclusive turns
+cannot. Speaker IDs are anonymous labels within a recording, not people's
+names or persistent identities. An empty set of turns can indicate no speech.
+Call `close()` to release the model. Diarization is not yet attached to
+transcripts, exposed through the job API or displayed in the browser.
+
+The opt-in offline GPU check exercises the real adapter with
+`test/data/smoke/two-voices.wav`: two alternating synthetic voices constructed
+from versioned Flite and eSpeak recordings. The Flite sample is repeated
+twice per turn, followed by the first eight seconds of the English checkpoint
+recording, with one second of silence between turns. That sequence is repeated
+once. The WAV is mono 16 kHz, and its SHA-256 is
+`976ed9a79fd6b456b499643b7d393bc33bc8f29cae5f0fccfc13519e288445e8`.
+The annotated intervals represent source clips, not manually verified speech
+boundaries. A short test regenerates the file from its sources and checks
+the hash and intervals. To run the real-model check:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q \
+  test/integration/test_diarization_adapter.py
+```
+
+It checks that the two voices are distinguished consistently across their
+alternating intervals, but does not establish accuracy on real meetings.
+
 ## Temporary transcription jobs
 
 `TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. `FasterWhisperJob` constructs and unloads the model in that child. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
@@ -238,7 +278,7 @@ Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelli
 
 The app's coordinator exposes `POST /api/v1/jobs`, `GET /api/v1/jobs/{job_id}`, and `POST /api/v1/jobs/{job_id}/cancel`. POST requests require an `Origin` matching the localhost request; job endpoints reject non-local Host headers and return `Cache-Control: no-store`. Unknown jobs return 404; already-succeeded or failed jobs return 409 on cancellation. The app creates its coordinator at startup and stops it at shutdown; its device is selected by `MEETSCRIBE_DEVICE` (`cuda` by default, or explicitly `cpu`). The coordinator is synchronous and must not be called directly from an async event loop.
 
-The upload is multipart form data with one `file`, optional `language` (`en` or `it`), and optional `replace_oldest_job_id`. It requires `Content-Length`, limits audio to 100,000,000 bytes and five minutes, and allows one upload at a time. The request limit is 100,065,536 bytes; multipart headers, parts and fields are also bounded. A separate decoder process has a 30-second limit. The filename must end in `.wav` or `.mp3` and match the actual format. WAV (PCM) and MP3 must contain one mono audio stream at 8–48 kHz; stereo is explicitly rejected rather than downmixed and risking loss of speech. Unsupported, empty, corrupt or misleading files are rejected before transcription. Uploads time out after 120 seconds.
+The upload is multipart form data with one `file`, optional `language` (`en` or `it`), and optional `replace_oldest_job_id`. It requires `Content-Length`, limits audio to 100,000,000 bytes and five minutes, and allows one upload at a time. The request limit is 100,065,536 bytes; multipart headers, parts and fields are also bounded. A separate decoder process has a 30-second limit. The filename must end in `.wav` or `.mp3` and match the actual format. WAV (PCM) and MP3 must contain one mono or stereo audio stream at 8–48 kHz; stereo is mixed to mono for transcription and diarization. Mixing loses channel separation and can cancel opposite-phase speech. The original upload is not modified and is deleted after processing, cancellation or failure. Unsupported, empty, corrupt or misleading files are rejected before transcription. Uploads time out after 120 seconds.
 
 Multipart parsing uses pinned [python-multipart 0.0.32](https://github.com/Kludex/python-multipart), licensed under Apache-2.0.
 
