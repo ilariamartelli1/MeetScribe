@@ -4,3 +4,5 @@
 !uv.lock
 !app/
 !app/*.py
+!app/model_manifests/
+!app/model_manifests/*.toml
