@@ -1,6 +1,9 @@
 """Verify faster-whisper loading, language, VAD and timestamp conversion."""
 
 import hashlib
+import struct
+import wave
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -20,7 +23,16 @@ def model_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "preprocessor_config.json",
     ):
         (tmp_path / name).write_bytes(b"test")
-    monkeypatch.setattr(adapter, "MODEL_SHA256", hashlib.sha256(b"test").hexdigest())
+    digest = hashlib.sha256(b"test").hexdigest()
+    monkeypatch.setattr(
+        adapter,
+        "MODEL_MANIFEST",
+        replace(
+            adapter.MODEL_MANIFEST,
+            files={name: digest for name in adapter.MODEL_MANIFEST.files},
+            optional_files={},
+        ),
+    )
     return tmp_path
 
 
@@ -50,7 +62,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
     ]
     assert transcript.provenance.device == "cuda"
     assert transcript.provenance.compute_type == "int8_float16"
-    assert transcript.provenance.model_revision == adapter.MODEL_REVISION
+    assert transcript.provenance.model_revision == adapter.MODEL_MANIFEST.revision
     assert model.transcribe.call_args.kwargs == {
         "language": "it",
         "task": "transcribe",
@@ -108,6 +120,38 @@ def test_cpu_transcription_records_effective_compute_type(
     assert transcript.provenance.compute_type == "int8_float32"
 
 
+@pytest.mark.parametrize(("left", "right"), [(10000, 0), (0, 10000)])
+def test_stereo_reaches_whisper_as_mono(
+    model_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    left: int,
+    right: int,
+) -> None:
+    audio_path = tmp_path / "stereo.wav"
+    with wave.open(str(audio_path), "wb") as audio:
+        audio.setnchannels(2)
+        audio.setsampwidth(2)
+        audio.setframerate(16000)
+        audio.writeframes(struct.pack("<hh", left, right) * 16000)
+    model = Mock()
+    model.model.device = "cpu"
+    model.model.compute_type = "int8_float32"
+    model.transcribe.return_value = (
+        iter([SimpleNamespace(start=0.1, end=0.5, text="hello")]),
+        None,
+    )
+    monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
+    transcript = TranscriptionService(
+        adapter.FasterWhisperTranscriber(model_dir, "cpu")
+    ).transcribe(audio_path)
+    waveform = model.transcribe.call_args.args[0]
+    assert waveform.ndim == 1
+    assert len(waveform) == 16000
+    assert max(abs(value) for value in waveform) > 0.1
+    assert transcript.duration_ms == 1000
+
+
 def test_missing_gpu_and_wrong_model_are_rejected(
     model_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -118,6 +162,27 @@ def test_missing_gpu_and_wrong_model_are_rejected(
         adapter.FasterWhisperTranscriber(model_dir, "cuda")
     (model_dir / "model.bin").write_bytes(b"wrong")
     with pytest.raises(ValueError, match="SHA-256"):
+        adapter.FasterWhisperTranscriber(model_dir, "cpu")
+
+
+@pytest.mark.parametrize(
+    "filename", ["config.json", "tokenizer.json", "preprocessor_config.json"]
+)
+def test_modified_model_metadata_is_rejected(model_dir: Path, filename: str) -> None:
+    (model_dir / filename).write_bytes(b"modified")
+    with pytest.raises(ValueError, match="SHA-256"):
+        adapter.FasterWhisperTranscriber(model_dir, "cpu")
+
+
+def test_missing_weights_from_manifest_is_rejected_before_loading(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest = adapter.MODEL_MANIFEST
+    files = {
+        name: digest for name, digest in manifest.files.items() if name != "model.bin"
+    }
+    monkeypatch.setattr(adapter, "MODEL_MANIFEST", replace(manifest, files=files))
+    with pytest.raises(ValueError, match="manifest must pin model.bin"):
         adapter.FasterWhisperTranscriber(model_dir, "cpu")
 
 

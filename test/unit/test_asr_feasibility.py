@@ -7,6 +7,7 @@ import hashlib
 import math
 import struct
 import wave
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -15,6 +16,7 @@ import pytest
 import av
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
+from app.faster_whisper_asr import MODEL_MANIFEST
 from test.src import asr_feasibility as feasibility
 
 
@@ -29,8 +31,15 @@ def inputs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, list[
         "preprocessor_config.json",
     ):
         (model / name).write_bytes(b"test")
+    digest = hashlib.sha256(b"test").hexdigest()
     monkeypatch.setattr(
-        feasibility, "MODEL_SHA256", hashlib.sha256(b"test").hexdigest()
+        feasibility,
+        "MODEL_MANIFEST",
+        replace(
+            MODEL_MANIFEST,
+            files={name: digest for name in MODEL_MANIFEST.files},
+            optional_files={},
+        ),
     )
     wav, mp3 = tmp_path / "sample.wav", tmp_path / "sample.mp3"
     wav.write_bytes(b"wav")
@@ -44,13 +53,11 @@ def test_inputs_require_pinned_complete_model_and_audio(
     model, audio = inputs
     feasibility.validate_inputs(model, audio)
 
-    monkeypatch.setattr(feasibility, "MODEL_SHA256", "incorrect")
-    with pytest.raises(ValueError, match="pinned SHA-256"):
+    (model / "model.bin").write_bytes(b"modified")
+    with pytest.raises(ValueError, match="SHA-256"):
         feasibility.validate_inputs(model, audio)
 
-    monkeypatch.setattr(
-        feasibility, "MODEL_SHA256", hashlib.sha256(b"test").hexdigest()
-    )
+    (model / "model.bin").write_bytes(b"test")
     (model / "tokenizer.json").unlink()
     with pytest.raises(FileNotFoundError, match="tokenizer.json"):
         feasibility.validate_inputs(model, audio)

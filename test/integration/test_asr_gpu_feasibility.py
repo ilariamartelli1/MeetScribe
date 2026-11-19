@@ -50,6 +50,8 @@ def test_offline_gpu_inference(asr_image: str) -> None:
             f"type=bind,src={paths['MEETSCRIBE_TEST_WAV']},dst=/audio/sample.wav,readonly",
             "--mount",
             f"type=bind,src={paths['MEETSCRIBE_TEST_MP3']},dst=/audio/sample.mp3,readonly",
+            "--env",
+            "PYTHONPATH=/app",
             "--entrypoint",
             "python",
             asr_image,

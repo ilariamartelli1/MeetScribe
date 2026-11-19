@@ -71,7 +71,7 @@ def test_synthetic_speech_transcription(asr_image: str) -> None:
             "--mount",
             f"type=bind,src={PROJECT_ROOT / 'test/src'},dst=/checks,readonly",
             "--env",
-            "PYTHONPATH=/checks",
+            "PYTHONPATH=/app:/checks",
             "--mount",
             f"type=bind,src={model_dir},dst=/model,readonly",
             "--mount",

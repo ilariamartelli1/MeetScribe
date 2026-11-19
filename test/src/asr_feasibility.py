@@ -2,7 +2,6 @@
 
 import argparse
 import gc
-import hashlib
 import json
 import subprocess
 import threading
@@ -15,7 +14,9 @@ import ctranslate2  # type: ignore[import-untyped]
 from faster_whisper import WhisperModel  # type: ignore[import-untyped]
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-MODEL_SHA256 = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+from app.faster_whisper_asr import MODEL_MANIFEST
+from app.model_integrity import verify_model
+
 COMPUTE_TYPE = "int8_float16"
 SAMPLE_INTERVAL_SECONDS = 0.2
 
@@ -53,20 +54,7 @@ class FeasibilityReport(TypedDict):
 
 
 def validate_inputs(model_dir: Path, audio_paths: list[Path]) -> None:
-    for filename in (
-        "model.bin",
-        "config.json",
-        "tokenizer.json",
-        "preprocessor_config.json",
-    ):
-        if not (model_dir / filename).is_file():
-            raise FileNotFoundError(
-                f"Missing provisioned model file: {model_dir / filename}"
-            )
-    with (model_dir / "model.bin").open("rb") as model_file:
-        actual = hashlib.file_digest(model_file, "sha256").hexdigest()
-    if actual != MODEL_SHA256:
-        raise ValueError("Model weights do not match the pinned SHA-256.")
+    verify_model(model_dir, MODEL_MANIFEST)
     if len(audio_paths) != 2 or [path.suffix.lower() for path in audio_paths] != [
         ".wav",
         ".mp3",

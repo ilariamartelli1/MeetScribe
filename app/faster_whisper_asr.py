@@ -1,4 +1,3 @@
-import hashlib
 import math
 from importlib.metadata import version
 from pathlib import Path
@@ -15,9 +14,9 @@ from app.asr_contract import (
     Transcript,
     TranscriptSegment,
 )
+from app.model_integrity import MANIFEST_DIR, load_manifest, verify_model
 
-MODEL_REVISION = "4df90f75321148c3a29a9e2351b7ddf8f5b115a8"
-MODEL_SHA256 = "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+MODEL_MANIFEST = load_manifest(MANIFEST_DIR / "faster_whisper.toml")
 SAMPLE_RATE = 16000
 BEAM_SIZE = 5
 VAD_ENABLED = True
@@ -30,20 +29,14 @@ class FasterWhisperTranscriber:
     def __init__(self, model_dir: Path, device: Device) -> None:
         if device not in (CPU_DEVICE, CUDA_DEVICE):
             raise ValueError("Device must be explicitly set to 'cuda' or 'cpu'.")
+        try:
+            model_sha256 = MODEL_MANIFEST.files["model.bin"]
+        except KeyError as exc:
+            raise ValueError(
+                f"{MODEL_MANIFEST.name} manifest must pin model.bin."
+            ) from exc
         model_dir = model_dir.resolve()
-        for name in (
-            "model.bin",
-            "config.json",
-            "tokenizer.json",
-            "preprocessor_config.json",
-        ):
-            if not (model_dir / name).is_file():
-                raise FileNotFoundError(
-                    f"Missing provisioned model file: {model_dir / name}"
-                )
-        with (model_dir / "model.bin").open("rb") as model_file:
-            if hashlib.file_digest(model_file, "sha256").hexdigest() != MODEL_SHA256:
-                raise ValueError("Model weights do not match the pinned SHA-256.")
+        verify_model(model_dir, MODEL_MANIFEST)
         if device == CUDA_DEVICE and ctranslate2.get_cuda_device_count() < 1:
             raise RuntimeError("CUDA GPU unavailable; CPU fallback is disabled.")
 
@@ -65,9 +58,9 @@ class FasterWhisperTranscriber:
         self._provenance = ModelProvenance(
             adapter="faster-whisper",
             adapter_version=version("faster-whisper"),
-            model_id="deepdml/faster-whisper-large-v3-turbo-ct2",
-            model_revision=MODEL_REVISION,
-            model_sha256=MODEL_SHA256,
+            model_id=MODEL_MANIFEST.model_id,
+            model_revision=MODEL_MANIFEST.revision,
+            model_sha256=model_sha256,
             device=device,
             compute_type=compute_type,
             vad_enabled=VAD_ENABLED,
