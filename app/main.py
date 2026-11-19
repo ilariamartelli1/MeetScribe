@@ -22,7 +22,7 @@ from app.transcription_jobs import (
     ResultCapacityError,
     TranscriptionCoordinator,
 )
-from app.transcription_worker import FasterWhisperJob
+from app.transcription_worker import SpeakerAttributedJob
 from app.uploads import (
     MAX_REQUEST_BYTES,
     UploadError,
@@ -69,7 +69,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.upload_dir = Path(tempfile.mkdtemp(prefix="meetscribe-uploads-"))
     try:
         app.state.coordinator = TranscriptionCoordinator(
-            FasterWhisperJob(Path("models/faster-whisper-large-v3-turbo"), device)
+            SpeakerAttributedJob(
+                Path("models/faster-whisper-large-v3-turbo"),
+                Path("models/pyannote-community-1"),
+                device,
+            )
         )
     except BaseException:
         app.state.upload_dir.rmdir()

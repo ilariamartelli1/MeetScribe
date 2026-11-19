@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.transcription_jobs import TranscriptionCoordinator
-from test.unit.test_transcription_jobs import FakeJob, wait_for
+from test.unit.test_transcription_jobs import FakeJob, FakeSpeakerJob, wait_for
 
 
 def test_health_endpoint() -> None:
@@ -23,6 +23,24 @@ def test_unknown_endpoint_is_not_healthy() -> None:
     response = TestClient(app).get("/api/v1/missing")
 
     assert response.status_code == 404
+
+
+def test_speaker_attributions_are_available_in_job_status(tmp_path: Path) -> None:
+    with TestClient(app, base_url="http://localhost") as client:
+        app.state.coordinator.shutdown()
+        coordinator = TranscriptionCoordinator(FakeSpeakerJob(tmp_path))
+        app.state.coordinator = coordinator
+        job_id = coordinator.submit(Path("speech.wav"))
+        wait_for(lambda: coordinator.get(job_id).state == "succeeded")
+        response = client.get(f"/api/v1/jobs/{job_id}")
+        assert response.status_code == 200
+        result = response.json()["result"]
+        assert result["segments"] == [{"start_ms": 100, "end_ms": 500, "text": "hello"}]
+        assert result["attributions"] == [
+            {"start_ms": 100, "end_ms": 500, "speaker": "Voice 1"}
+        ]
+        assert result["diarization"]["turns"][0]["speaker_id"] == "A"
+        assert response.headers["cache-control"] == "no-store"
 
 
 def test_cancel_endpoint_and_status_remain_responsive(tmp_path: Path) -> None:
