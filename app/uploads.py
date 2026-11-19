@@ -221,9 +221,18 @@ def _validate_in_child(path: Path, expected_format: str, sender: Connection) -> 
                 stream.codec_context.thread_count = 1
                 samples = 0
                 sample_rate = 0
+                channel_layout = None
                 for frame in container.decode(stream):
-                    if len(frame.layout.channels) != 1:
-                        raise UploadError("Only mono audio is supported.")
+                    if len(frame.layout.channels) not in (1, 2):
+                        raise UploadError("Only mono or stereo audio is supported.")
+                    if (
+                        channel_layout is not None
+                        and frame.layout.name != channel_layout
+                    ):
+                        raise UploadError(
+                            "Changing audio channel layout is unsupported."
+                        )
+                    channel_layout = frame.layout.name
                     if not 8000 <= frame.sample_rate <= MAX_SAMPLE_RATE:
                         raise UploadError("Audio sample rate must be 8-48 kHz.")
                     if sample_rate and sample_rate != frame.sample_rate:

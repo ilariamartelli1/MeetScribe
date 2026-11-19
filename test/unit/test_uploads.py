@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import av
 import pytest
 from fastapi.testclient import TestClient
 
@@ -28,13 +29,13 @@ HEADERS = {"origin": "http://localhost"}
 FIXTURES = Path(__file__).resolve().parents[1] / "data/smoke"
 
 
-def wav_bytes(samples: int = 800, sample_rate: int = 8000) -> bytes:
+def wav_bytes(samples: int = 800, sample_rate: int = 8000, channels: int = 1) -> bytes:
     output = io.BytesIO()
     with wave.open(output, "wb") as audio:
-        audio.setnchannels(1)
+        audio.setnchannels(channels)
         audio.setsampwidth(2)
         audio.setframerate(sample_rate)
-        audio.writeframes(b"\0\0" * samples)
+        audio.writeframes(b"\0\0" * samples * channels)
     return output.getvalue()
 
 
@@ -116,9 +117,7 @@ def test_mp3_upload_is_accepted(client: TestClient) -> None:
         ("wrong.mp3", wav_bytes(), "match"),
         ("wrong.wav", (FIXTURES / "synthetic-meeting.mp3").read_bytes(), "match"),
         ("bad.ogg", b"data", "WAV and MP3"),
-        ("left.wav", stereo_speech_bytes("left"), "mono"),
-        ("right.wav", stereo_speech_bytes("right"), "mono"),
-        ("opposed.wav", stereo_speech_bytes("opposed"), "mono"),
+        ("surround.wav", wav_bytes(channels=4), "mono or stereo"),
         ("low-rate.wav", wav_bytes(sample_rate=4000), "sample rate"),
         ("high-rate.wav", wav_bytes(sample_rate=96000), "sample rate"),
         pytest.param(
@@ -136,9 +135,7 @@ def test_mp3_upload_is_accepted(client: TestClient) -> None:
         "wav-as-mp3",
         "mp3-as-wav",
         "extension",
-        "left-only",
-        "right-only",
-        "opposite-phase",
+        "surround",
         "low-rate",
         "high-rate",
         "too-long",
@@ -155,6 +152,51 @@ def test_invalid_audio_is_rejected_before_start(
     assert response.headers["cache-control"] == "no-store"
     assert not (tmp_path / "started").exists()
     assert not list(app.state.upload_dir.iterdir())
+
+
+@pytest.mark.parametrize("mode", ["left", "right", "opposed"])
+def test_stereo_wav_is_accepted_without_modifying_input(
+    client: TestClient, tmp_path: Path, mode: str
+) -> None:
+    audio = stereo_speech_bytes(mode)
+    path = tmp_path / "stereo.wav"
+    path.write_bytes(audio)
+    validate_audio(path, "wav")
+    assert path.read_bytes() == audio
+    response = client.post(
+        "/api/v1/jobs", headers=HEADERS, files={"file": ("stereo.wav", audio)}
+    )
+    assert response.status_code == 202, response.text
+    wait_for(
+        lambda: app.state.coordinator.get(response.json()["job_id"]).state
+        == "succeeded"
+    )
+    assert not list(app.state.upload_dir.iterdir())
+
+
+def test_stereo_mp3_is_accepted(client: TestClient) -> None:
+    output = io.BytesIO()
+    with (
+        av.open(io.BytesIO(stereo_speech_bytes("left")), mode="r") as source,
+        av.open(output, "w", format="mp3") as destination,
+    ):
+        encoder = destination.add_stream("libmp3lame", rate=8000)
+        encoder.layout = "stereo"
+        for frame in source.decode(audio=0):
+            for packet in encoder.encode(frame):
+                destination.mux(packet)
+        for packet in encoder.encode(None):
+            destination.mux(packet)
+    response = client.post(
+        "/api/v1/jobs",
+        headers=HEADERS,
+        files={"file": ("stereo.mp3", output.getvalue())},
+    )
+    assert response.status_code == 202, response.text
+    wait_for(
+        lambda: app.state.coordinator.get(response.json()["job_id"]).state
+        == "succeeded"
+    )
 
 
 def test_exactly_five_minutes_is_accepted(client: TestClient) -> None:
