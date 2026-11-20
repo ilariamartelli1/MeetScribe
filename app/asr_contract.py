@@ -27,6 +27,7 @@ class ModelProvenance:
     vad_enabled: bool
     beam_size: int
     condition_on_previous_text: bool | None = None
+    chunk_length_seconds: int | None = None
 
 
 @dataclass(frozen=True)

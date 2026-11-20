@@ -21,6 +21,7 @@ SAMPLE_RATE = 16000
 BEAM_SIZE = 5
 VAD_ENABLED = True
 CONDITION_ON_PREVIOUS_TEXT = False
+CHUNK_LENGTH_SECONDS = 30
 CUDA_COMPUTE_TYPE = "int8_float16"
 CPU_COMPUTE_TYPE = "int8_float32"
 
@@ -66,6 +67,7 @@ class FasterWhisperTranscriber:
             vad_enabled=VAD_ENABLED,
             beam_size=BEAM_SIZE,
             condition_on_previous_text=CONDITION_ON_PREVIOUS_TEXT,
+            chunk_length_seconds=CHUNK_LENGTH_SECONDS,
         )
         self._closed = False
 
@@ -91,6 +93,7 @@ class FasterWhisperTranscriber:
             beam_size=BEAM_SIZE,
             vad_filter=VAD_ENABLED,
             condition_on_previous_text=CONDITION_ON_PREVIOUS_TEXT,
+            chunk_length=CHUNK_LENGTH_SECONDS,
         )
         result = []
         for segment in segments:

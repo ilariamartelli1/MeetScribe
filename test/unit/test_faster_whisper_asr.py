@@ -69,6 +69,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
         "beam_size": 5,
         "vad_filter": True,
         "condition_on_previous_text": False,
+        "chunk_length": 30,
     }
     assert constructor.call_args.kwargs["local_files_only"] is True
     assert constructor.call_args.kwargs["compute_type"] == "int8_float16"
@@ -81,6 +82,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
         == model.transcribe.call_args.kwargs["vad_filter"]
     )
     assert transcript.provenance.condition_on_previous_text is False
+    assert transcript.provenance.chunk_length_seconds == 30
 
 
 def test_cpu_is_explicit_and_silence_is_rejected(
@@ -118,6 +120,8 @@ def test_cpu_transcription_records_effective_compute_type(
 
     assert transcript.provenance.device == "cpu"
     assert transcript.provenance.compute_type == "int8_float32"
+    assert transcript.provenance.chunk_length_seconds == 30
+    assert model.transcribe.call_args.kwargs["chunk_length"] == 30
 
 
 @pytest.mark.parametrize(("left", "right"), [(10000, 0), (0, 10000)])
