@@ -77,6 +77,14 @@ def test_negation_difference_fails_even_under_threshold() -> None:
     assert quality_failures(result, 0.03)
 
 
+def test_missing_word_fails_even_under_wer_threshold() -> None:
+    reference = " ".join(f"word{i}" for i in range(100))
+    hypothesis = " ".join(f"word{i}" for i in range(1, 100))
+    result = evaluate(reference, hypothesis, "en", identity)
+    assert result.wer < 0.03
+    assert quality_failures(result, 0.03) == ("Reference word deletions: 1",)
+
+
 def test_invalid_wer_limit_is_rejected() -> None:
     result = evaluate("word", "word", "en", identity)
     with pytest.raises(ValueError, match="threshold"):

@@ -1,0 +1,1 @@
+During this meeting, we agreed that the engineering team will review the new transcription feature on Friday, while the product team prepares a short demonstration for the customer, and we will not release the update until everyone has checked the test results and confirmed that the remaining issues are resolved.

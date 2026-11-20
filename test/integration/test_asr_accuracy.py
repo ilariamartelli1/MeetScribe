@@ -14,7 +14,6 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_DIR = PROJECT_ROOT / "test/data/smoke"
-EXPECTED_TEXT = "This is a test meeting. The project is on schedule."
 
 TRANSCRIBE_SCRIPT = """
 import json
@@ -91,7 +90,8 @@ def test_synthetic_speech_transcription(asr_image: str) -> None:
     )
     transcripts = json.loads(result.stdout)
     assert set(transcripts) == {".wav", ".mp3"}
+    expected = (SAMPLE_DIR / "synthetic-meeting-script.txt").read_text(encoding="utf-8")
     for audio_format, actual in transcripts.items():
-        assert normalize_text(actual) == normalize_text(EXPECTED_TEXT), (
-            f"{audio_format}: expected {EXPECTED_TEXT!r}, got {actual!r}"
+        assert normalize_text(actual) == normalize_text(expected), (
+            f"{audio_format}: expected {expected!r}, got {actual!r}"
         )

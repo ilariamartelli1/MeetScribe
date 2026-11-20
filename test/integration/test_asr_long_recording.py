@@ -13,6 +13,25 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RECORDING = PROJECT_ROOT / "test/data/checkpoint/english/meeting-en.mp3"
+FINAL_SPEECH_INTERVAL_MS = (292_155, 296_955)
+FINAL_SPEECH_PHRASE = "the team will meet again"
+
+
+def assert_final_speech_timing(segments: list[dict[str, object]]) -> None:
+    start, end = FINAL_SPEECH_INTERVAL_MS
+    texts = []
+    for segment in segments:
+        segment_start, segment_end, text = (
+            segment["start_ms"],
+            segment["end_ms"],
+            segment["text"],
+        )
+        assert isinstance(segment_start, int) and isinstance(segment_end, int)
+        assert isinstance(text, str)
+        if segment_start < end and start < segment_end:
+            texts.append(text)
+    interval_text = " ".join(re.findall(r"\w+", " ".join(texts).casefold()))
+    assert FINAL_SPEECH_PHRASE in interval_text, interval_text
 
 
 @pytest.mark.skipif(
@@ -68,9 +87,4 @@ def test_five_minute_mp3_has_bounded_timestamps_and_final_speech(
     text = " ".join(re.findall(r"\w+", report["text"].casefold()))
     assert "the team will meet again after the results have been reviewed" in text
     assert text.count("the results of the results") == 0
-    assert any(
-        "the team will meet again" in segment["text"].casefold()
-        and segment["start_ms"] < 296_955
-        and segment["end_ms"] > 292_155
-        for segment in report["segments"]
-    )
+    assert_final_speech_timing(report["segments"])

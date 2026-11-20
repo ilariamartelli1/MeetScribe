@@ -1,0 +1,12 @@
+Buongiorno a tutte e a tutti, questa è una riunione di prova completamente sintetica.
+Elena presenta il prototipo che trascrive le registrazioni sul computer locale.
+Il gruppo esamina i risultati prima di condividere qualsiasi trascrizione.
+No, non approviamo il rilascio finché i test non saranno completati.
+Marco controllerà il file audio e correggerà eventuali parole mancanti.
+La dimostrazione è prevista per il quattordici aprile, con un budget di duemila quattrocento euro.
+Dopo una breve pausa, Anna verificherà anche le parole pronunciate a voce bassa.
+Il programma deve mantenere i riferimenti temporali della registrazione originale.
+I nomi e le cifre in questa registrazione sono inventati per il test.
+La bozza non è un verbale verificato e deve essere riletta da una persona.
+Se il lavoro viene annullato, il processo deve fermarsi prima di accettare un nuovo file.
+Il gruppo si riunirà nuovamente il ventisette maggio per esaminare le correzioni.

@@ -1,0 +1,48 @@
+Good morning everyone, thank you for joining this fictional project review.
+Today we will discuss the transcription prototype, the current schedule, and the next demonstration.
+Elena is taking notes, and Marco will describe the latest changes to the service.
+We have a working upload page, and the application can process a short recording locally.
+The team tested both wave and MP3 files, using only synthetic and authorized material.
+The browser displays a draft transcript with timestamps, and a reviewer can correct the wording.
+It is important to say that an automatic transcript is not a verified meeting record.
+No, we will not release the feature before the test results have been reviewed.
+A quiet word can change the meaning of a decision, especially when it is a negation.
+The review group will compare the draft with the audio instead of relying on confidence alone.
+On fourteen April, the team plans to show a short demonstration to the product group.
+The demonstration will use a fictional conversation and will not include a real customer recording.
+The estimated preparation budget is two thousand four hundred euros for the first review.
+That amount includes testing time, documentation, and a small reserve for unexpected work.
+Paolo asked whether the team should add speaker labels before validating the basic transcript.
+The answer was no: speaker labels should wait until the transcription workflow is reliable.
+For the next checkpoint, Anna will check the behavior of upload, cancellation, and draft download.
+She will record any mistake with its original timestamp and a short description of the correction.
+The team will also inspect words spoken immediately after a pause of several seconds.
+The first version accepts one recording at a time, rather than running several models together.
+If another request arrives while a job is active, the application should explain that it is busy.
+If a request is cancelled, the worker must stop before a new recording begins processing.
+Elena noted that temporary audio should be removed after processing, cancellation, or failure.
+A downloaded draft remains on the reviewer's computer and is outside the application's deletion control.
+The transcript should be clearly marked as a draft until a person checks the original recording.
+A person may correct a name, a number, a missing word, or an incorrect date.
+During a previous synthetic test, the phrase not approved was especially important to preserve.
+The model must not silently translate an Italian recording when transcription is requested.
+The group agreed to keep model selection separate from the rest of the application.
+This design lets the team compare a different transcription model using the same recording.
+A smaller model may be useful if a later workload exceeds the available graphics memory.
+The current laptop has limited resources, so each heavy processing stage should run in sequence.
+Marco will measure memory during a longer recording and report the highest observed value.
+These measurements will be collected with normal desktop applications running in the background.
+A single successful sample does not prove that the system is ready for every meeting.
+The reviewers should include different speaking speeds, pauses, and deliberately quiet words.
+They should also check names, spoken dates, numbers, and amounts in both supported languages.
+The next internal review is planned for twenty seven May, after the test notes are complete.
+The target is fifteen reviewed recordings, although the exact quality threshold has not been chosen.
+A threshold should be set after measuring a representative baseline rather than guessing in advance.
+The team will document which recordings were used and whether each one was authorized.
+Any real company recording requires separate approval before it is used for development.
+For this demonstration, the audio and all names are artificial, and the numbers are fictional.
+Before closing, Elena will summarize the actions and confirm who is responsible for each one.
+Anna will review the browser workflow, and Marco will check graphics memory after cancellation.
+Paolo will prepare the comparison notes, but he will not publish an unreviewed transcript.
+No deadline will be changed without an explicit decision recorded in the meeting notes.
+Thank you everyone; the team will meet again after the results have been reviewed.

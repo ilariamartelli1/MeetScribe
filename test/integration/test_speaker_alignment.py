@@ -7,16 +7,56 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.test_asr_accuracy import normalize_text
+from test.src.audio_fixtures import VOICE_INTERVALS_MS
+
 ROOT = Path(__file__).resolve().parents[2]
-VOICE_INTERVALS_MS = ((0, 7062), (8062, 16062), (17062, 24124), (25124, 33124))
 MIN_INTERVAL_COVERAGE = 0.8
+MIN_TRANSCRIBED_COVERAGE_MS = 1000
 
 
-@pytest.mark.skipif(
-    os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
-    reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
-)
-def test_offline_job_attributes_alternating_synthetic_voices(asr_image: str) -> None:
+def _covered_ms(intervals: list[tuple[int, int]]) -> int:
+    covered = 0
+    last_end = 0
+    for start, end in sorted(intervals):
+        covered += max(0, end - max(start, last_end))
+        last_end = max(last_end, end)
+    return covered
+
+
+def interval_speaker(
+    interval: tuple[int, int], attributions: list[dict[str, object]]
+) -> str:
+    start, end = interval
+    all_intervals = []
+    speaker_intervals: dict[str, list[tuple[int, int]]] = {}
+    for entry in attributions:
+        entry_start, entry_end, speaker = (
+            entry["start_ms"],
+            entry["end_ms"],
+            entry["speaker"],
+        )
+        assert isinstance(entry_start, int) and isinstance(entry_end, int)
+        assert speaker is None or isinstance(speaker, str)
+        overlap = max(start, entry_start), min(end, entry_end)
+        if overlap[0] >= overlap[1]:
+            continue
+        all_intervals.append(overlap)
+        if speaker is not None:
+            speaker_intervals.setdefault(speaker, []).append(overlap)
+    total = _covered_ms(all_intervals)
+    assert total >= MIN_TRANSCRIBED_COVERAGE_MS, (interval, attributions)
+    speakers = [
+        speaker
+        for speaker, intervals in speaker_intervals.items()
+        if _covered_ms(intervals) >= total * MIN_INTERVAL_COVERAGE
+    ]
+    assert len(speakers) == 1, (interval, attributions)
+    return speakers[0]
+
+
+@pytest.fixture(scope="module")
+def attributed_job_report(asr_image: str) -> str:
     asr_model = Path(
         os.environ.get(
             "MEETSCRIBE_MODEL_DIR", str(ROOT / "models/faster-whisper-large-v3-turbo")
@@ -63,7 +103,17 @@ def test_offline_job_attributes_alternating_synthetic_voices(asr_image: str) -> 
     assert result.returncode == 0, (
         f"Speaker job failed:\n{result.stderr}\n{result.stdout}"
     )
-    report = json.loads(result.stdout)
+    return result.stdout
+
+
+@pytest.mark.skipif(
+    os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
+    reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
+)
+def test_offline_job_attributes_alternating_synthetic_voices(
+    attributed_job_report: str,
+) -> None:
+    report = json.loads(attributed_job_report)
     assert report["provenance"]["device"] == "cuda"
     assert report["diarization"]["provenance"]["device"] == "cuda"
     segments = report["segments"]
@@ -74,17 +124,30 @@ def test_offline_job_attributes_alternating_synthetic_voices(asr_image: str) -> 
         == (attribution["start_ms"], attribution["end_ms"])
         for segment, attribution in zip(segments, attributions, strict=True)
     )
-    interval_speakers = []
-    for start, end in VOICE_INTERVALS_MS:
-        speakers = {
-            entry["speaker"]
-            for entry in attributions
-            if entry["speaker"] is not None
-            and max(0, min(end, entry["end_ms"]) - max(start, entry["start_ms"]))
-            >= (end - start) * MIN_INTERVAL_COVERAGE
-        }
-        assert len(speakers) == 1, (start, end, speakers, attributions)
-        interval_speakers.append(speakers.pop())
+    interval_speakers = [
+        interval_speaker(interval, attributions) for interval in VOICE_INTERVALS_MS
+    ]
     assert interval_speakers[0] == interval_speakers[2]
     assert interval_speakers[1] == interval_speakers[3]
     assert interval_speakers[0] != interval_speakers[1]
+
+
+def assert_complete_transcript(actual: str, expected: str) -> None:
+    assert normalize_text(actual) == normalize_text(expected), (
+        f"Expected: {expected!r}; actual: {actual!r}"
+    )
+
+
+@pytest.mark.skipif(
+    os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
+    reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
+)
+def test_offline_job_transcribes_all_two_voice_speech(
+    attributed_job_report: str,
+) -> None:
+    report = json.loads(attributed_job_report)
+    expected = (ROOT / "test/data/smoke/two-voices-script.txt").read_text(
+        encoding="utf-8"
+    )
+    actual = " ".join(segment["text"] for segment in report["segments"])
+    assert_complete_transcript(actual, expected)

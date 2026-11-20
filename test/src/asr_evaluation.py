@@ -113,6 +113,8 @@ def quality_failures(result: Evaluation, max_wer: float) -> tuple[str, ...]:
     failures = []
     if result.wer > max_wer:
         failures.append(f"WER {result.wer:.2%} exceeds {max_wer:.2%}")
+    if result.deletions:
+        failures.append(f"Reference word deletions: {result.deletions}")
     if result.negation_differences:
         failures.extend(result.negation_differences)
     return tuple(failures)

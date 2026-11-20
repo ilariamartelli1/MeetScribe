@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.test_asr_accuracy import normalize_text
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -63,6 +65,12 @@ def test_quiet_negations_and_silence_on_real_model(asr_image: str) -> None:
     ):
         segments = report[language]["segments"]
         actual = " ".join(segment["text"] for segment in segments)
+        expected = (
+            PROJECT_ROOT / f"test/data/smoke/quiet-negations-{language}-script.txt"
+        ).read_text(encoding="utf-8")
+        assert normalize_text(actual) == normalize_text(expected), (
+            f"{language}: expected {expected!r}; transcript: {actual!r}"
+        )
         tokens = re.findall(r"\w+", actual.casefold())
         missing = [word for word, _, _ in annotations if word not in tokens]
         assert not missing, f"{language}: missed {missing!r}; transcript: {actual!r}"
