@@ -113,13 +113,21 @@ The model card identifies the converted model as MIT-licensed. The versioned man
 
 The repository includes a short synthetic English sample in WAV and MP3 at `test/data/smoke/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
 
-`test/data/checkpoint/english/` and `test/data/checkpoint/italian/` contain the
-synthetic checkpoint recordings and their draft scripts and references. The
-recordings were reviewed for speech; the generated reference
-timings have not been human-verified. The English recording says "colon" aloud
-in one sentence. `test/data/manual/long-synthetic-meeting.mp3` is a separate
-short Flite sample for manual testing. All these recordings contain fictional
-content.
+`test/data/smoke/*-script.txt` contains the expected text for the short test
+recordings; the quiet-negation `*-source.txt` files retain the separate
+generation inputs. `test/data/checkpoint/english/` and
+`test/data/checkpoint/italian/` contain the synthetic checkpoint recordings,
+their generation inputs (`*-source.txt`), and reviewed scripts and references.
+The recordings were reviewed for speech; the generated reference timings have
+not been human-verified. The English generation input contains a colon that
+the voice says aloud; the reviewed reference includes the word "colon".
+`test/data/manual/long-synthetic-meeting-script.txt` records the generation
+input for the separate manual Flite MP3. All recordings contain fictional content.
+
+For each new synthetic test recording, version the text supplied to the speech
+generator alongside the audio and use it in the tests. Document the source
+and composition of derived clips as well. Generator input is not proof of what
+was actually spoken: review the audio and document any differences separately.
 
 After provisioning the model above, run the opt-in check:
 
@@ -149,19 +157,24 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s test/integration/t
 
 The test uses the same offline containerized production adapter and checks
 fixture hashes and script/JSON text consistency. It enforces **WER ≤ 3% for
-each file** and fails on alignment differences in selected negation words
+each file**, zero JiWER reference-word deletions, and no alignment differences in selected negation words
 (`no`, `not`, `never`, `non`, `mai`). The normalization and score run in the
 local development environment; NeMo, Pynini and JiWER are not added to the app
 image. The test prints WER and error counts for the synthetic fixtures; a
 failed gate also prints an alignment. English spoken dates can count as errors
 because NeMo may express digits as ordinals. The negation check is based on
 word alignment, not a complete semantic or grammatical analysis. Neither
-passing this synthetic test nor its 3% threshold establishes quality on real
+zero deletions nor the 3% threshold rules out substitutions or establishes quality on real
 meetings. See [the checkpoint report](docs/sprint-1-checkpoint.md) for results.
+With the earlier experimental 25-second window, one observed run failed the
+deletion gate on the English MP3 and both Italian files; the Italian files also
+exceeded 3% WER.
+See [the window comparison](docs/asr-window-comparison.md) for controlled
+25-, 28- and 30-second results and their limitations.
 
 ## Timestamped transcription contract
 
-`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD, an explicit 30-second chunk length and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
 
 The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
 
@@ -169,7 +182,7 @@ The opt-in adapter smoke test runs the production adapter in the actual app imag
 MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s test/integration/test_asr_adapter.py
 ```
 
-The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in `test/data/smoke/` are synthetic eSpeak NG 1.51 speech, with the negation utterances at 30% amplitude and long silent gaps. The English reference is "No. We do not approve." and the Italian reference is "No. Non siamo pronti." Annotated source intervals are `no` 3000–3321 ms and `not` 6647–6940 ms for English; `no` 3000–3265 ms and `non` 5965–6333 ms for Italian. The test checks each expected negation appears in a segment overlapping its source interval, and checks silence is rejected. Segment overlap does not establish word-level timing accuracy.
+The versioned `quiet-negations-en.wav` and `quiet-negations-it.wav` fixtures in `test/data/smoke/` are synthetic eSpeak NG 1.51 speech, with the negation utterances at 30% amplitude and long silent gaps. Their scripts contain the expected text. Annotated source intervals are `no` 3000–3321 ms and `not` 6647–6940 ms for English; `no` 3000–3265 ms and `non` 5965–6333 ms for Italian. The test compares the full transcript with the script, checks each expected negation appears in a segment overlapping its source interval, and checks silence is rejected. Segment overlap does not establish word-level timing accuracy.
 
 On November 8, 2026, the offline GPU smoke produced "No, we do not approve." and "No. Non siamo pronti." with no missed reference negations; silence was rejected. This small synthetic sample is not a quality benchmark, and quiet speech can still be missed in real recordings. Use only synthetic or explicitly authorized non-sensitive audio.
 
@@ -252,11 +265,12 @@ the browser and TXT export do not yet display or edit speaker labels.
 
 The opt-in offline GPU check exercises the real adapter with
 `test/data/smoke/two-voices.wav`: two alternating synthetic voices constructed
-from versioned Flite and eSpeak recordings. The Flite sample is repeated
-twice per turn, followed by the first eight seconds of the English checkpoint
-recording, with one second of silence between turns. That sequence is repeated
-once. The WAV is mono 16 kHz, and its SHA-256 is
-`976ed9a79fd6b456b499643b7d393bc33bc8f29cae5f0fccfc13519e288445e8`.
+from two Flite samples and two complete, different sentences extracted from the
+English eSpeak checkpoint WAV. The four turns are listed in
+`two-voices-script.txt`, with one second of silence between turns. The source
+intervals and assembly are in `test/src/audio_fixtures.py`. The WAV is mono
+16 kHz, and its SHA-256 is
+`a3067b55c8547ff6a40f0ee9195ceb02e02af3678827f09221e6e34590a9f21a`.
 The annotated intervals represent source clips, not manually verified speech
 boundaries. A short test regenerates the file from its sources and checks
 the hash and intervals. To run the real-model check:
@@ -282,10 +296,23 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q \
   test/integration/test_speaker_alignment.py
 ```
 
-It checks for a consistently distinct label overlapping at least 80% of each
-source-clip interval. These intervals include source silence, and the ASR
-segments can extend into adjacent silence; this check does not verify
-word-level timing or accuracy on real meetings.
+It separately checks the complete transcript against `two-voices-script.txt`
+and checks consistently distinct labels covering at least 80% of transcribed
+time in each source interval, with at least one second transcribed. This
+coverage check cannot detect omitted speech. An observed transcription
+substituted "Fragi" for "Friday" and "Elina" for "Elena", so the text check
+failed. These checks do not verify word-level timing or accuracy on real meetings.
+
+The isolated `repeated-sentence.wav` contains two copies of the same Flite
+sample and has its own script. Its opt-in check documents a known omission:
+one copy is reported as an expected failure, both copies pass, and any other
+output fails. An omitted exact repetition is not a MeetScribe summary blocker;
+this does not excuse missing distinct speech.
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q \
+  test/integration/test_asr_repetition.py
+```
 
 When all 16 result slots are occupied, `submit()` raises `ResultCapacityError` with the oldest job ID without starting a worker. The browser asks for confirmation and retries with that ID as `replace_oldest_job_id`; if the oldest result has changed, confirmation is required again. The limit bounds the number of retained results, not their individual size.
 
