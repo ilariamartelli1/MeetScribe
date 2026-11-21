@@ -1,8 +1,15 @@
 # MeetScribe
 
-MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings in a browser and provides experimental speaker attribution through its job API. Browser speaker labels, editable draft minutes, and saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
+MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings and provides experimental speaker attribution through its job API. Editable draft minutes and saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, edit transcripts, and download an unreviewed draft. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, view a read-only transcript, and download an unreviewed draft. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
+
+**Planned workflow:** The final browser UI will display and allow editing only
+of the summary, including decisions, action items, owners and deadlines.
+Transcript text and speaker-attributed segments will not be displayed or
+editable in the browser. An optional, non-conspicuous button outside the front
+page will download the unedited transcript with speaker labels for verification
+or debugging. Summary generation and editing are not implemented yet.
 
 ## Local setup
 
@@ -90,10 +97,10 @@ Provision both the transcription and Community-1 models as described below
 before starting a job. After starting the GPU configuration, open
 `http://127.0.0.1:8000/` in a browser.
 Select a mono or stereo WAV or MP3 (up to five minutes and 100 MB), choose its language,
-and transcribe. Review and edit the timestamped draft before downloading it as
-TXT. Cancel stops an active job; if the 16-result limit is reached, the page
-asks before replacing the oldest result. Results are temporary, and edits are
-lost on refresh or restart. Downloads are stored by the browser and are not
+and transcribe. View the read-only timestamped draft and download it as TXT.
+Cancel stops an active job; if the 16-result limit is reached, the page
+asks before replacing the oldest result. Results are temporary and are not
+restored on refresh or restart. Downloads are stored by the browser and are not
 deleted by the application. Use only synthetic or explicitly authorized,
 non-sensitive recordings.
 

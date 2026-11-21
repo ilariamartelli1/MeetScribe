@@ -4,6 +4,15 @@ Snapshot: 2026-11-21, based on repository commit `e9fbd6b`. This document
 records observed results, not a live dashboard. Results apply to the stated
 environment and test inputs; reruns may differ.
 
+**Slice 2.3a update:** After this snapshot, browser editing was removed and the
+targeted browser-flow and browser-asset checks passed: 12 tests total, including
+8 browser cases and 4 asset checks. The browser test previously named
+`test_real_api_upload_edit_and_download` was replaced by
+`test_real_api_upload_read_only_and_download`, and a multiple-segment download
+case was added. The historical snapshot counts below have not been rerun as a
+full suite with these changes; the other integration results remain earlier
+observations.
+
 ## Summary
 
 - **Default suite:** 191 passed, 24 skipped, 0 failed. All 191 executed tests

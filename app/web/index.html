@@ -12,7 +12,7 @@
     <h1>MeetScribe</h1>
     <p>Transcribe a short recording locally and review the draft. Speaker attribution is available through the job API but is not yet shown in the draft.</p>
     <p class="notice">Use only synthetic or explicitly authorized, non-sensitive recordings. Speaker labels do not anonymize a recording.</p>
-    <p>Mono or stereo WAV or MP3, up to 5 minutes and 100 MB. Stereo channels are mixed to mono; speech may be lost if the channels cancel each other. Results are temporary; edits are lost on refresh or restart.</p>
+    <p>Mono or stereo WAV or MP3, up to 5 minutes and 100 MB. Stereo channels are mixed to mono; speech may be lost if the channels cancel each other. Results are temporary and are not restored on refresh or restart.</p>
 
     <form id="upload-form">
       <label for="audio">Recording</label>
@@ -33,7 +33,7 @@
 
     <section id="transcript" hidden aria-labelledby="transcript-title">
       <h2 id="transcript-title">Draft transcript - unreviewed</h2>
-      <p>Review and correct the text before downloading. Edits are not saved.</p>
+      <p>This transcript is read-only and may contain errors.</p>
       <div id="segments"></div>
       <button id="download" type="button">Download draft TXT</button>
     </section>

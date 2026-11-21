@@ -102,7 +102,7 @@ def select_sample(page: Page) -> None:
     page.locator("#audio").set_input_files(str(SAMPLE))
 
 
-def test_real_api_upload_edit_and_download(page: Page, tmp_path: Path) -> None:
+def test_real_api_upload_read_only_and_download(page: Page, tmp_path: Path) -> None:
     assert "synthetic or explicitly authorized" in page.locator(".notice").inner_text()
     assert "do not anonymize" in page.locator(".notice").inner_text()
     page.locator("#language").select_option("it")
@@ -110,22 +110,71 @@ def test_real_api_upload_edit_and_download(page: Page, tmp_path: Path) -> None:
     page.get_by_role("button", name="Transcribe").click()
     page.get_by_text("Transcription complete. Review the draft below.").wait_for()
     text = page.locator("#segment-0")
-    assert text.input_value() == UNTRUSTED
+    assert text.inner_text() == UNTRUSTED
+    assert text.evaluate("(element) => element.isContentEditable") is False
+    assert (
+        page.locator(
+            "#segments textarea, #segments input, #segments [contenteditable]"
+        ).count()
+        == 0
+    )
+    text.click()
+    page.keyboard.type("Attempted edit")
+    assert text.inner_text() == UNTRUSTED
     assert page.locator("#segments img").count() == 0
     assert page.evaluate("window.injected") is None
-    text.fill("Corrected Italian text")
     with page.expect_download() as downloaded:
         page.get_by_role("button", name="Download draft TXT").click()
     saved = tmp_path / "draft.txt"
     downloaded.value.save_as(saved)
     assert saved.read_text() == (
-        "DRAFT / UNREVIEWED\n\n[00:00:00.100 - 00:00:00.900] Corrected Italian text\n"
+        f"DRAFT / UNREVIEWED\n\n[00:00:00.100 - 00:00:00.900] {UNTRUSTED}\n"
     )
     assert page.evaluate("localStorage.length") == 0
     assert page.evaluate("sessionStorage.length") == 0
     assert page.evaluate("indexedDB.databases().then(items => items.length)") == 0
     page.reload()
     assert page.locator("#transcript").is_hidden()
+
+
+def test_download_preserves_multiple_original_segments(
+    page: Page, tmp_path: Path
+) -> None:
+    def handle(route: Route) -> None:
+        if route.request.method == "POST":
+            route.fulfill(status=202, json={"job_id": "job"})
+        else:
+            route.fulfill(
+                json={
+                    "state": "succeeded",
+                    "result": {
+                        "segments": [
+                            {"start_ms": 100, "end_ms": 900, "text": "Città\nprima"},
+                            {
+                                "start_ms": 1000,
+                                "end_ms": 2200,
+                                "text": "Secondo turno.",
+                            },
+                        ]
+                    },
+                }
+            )
+
+    page.route("**/api/v1/jobs**", handle)
+    select_sample(page)
+    page.get_by_role("button", name="Transcribe").click()
+    page.get_by_text("Transcription complete. Review the draft below.").wait_for()
+    assert page.locator("#segment-0").text_content() == "Città\nprima"
+    assert page.locator("#segment-1").text_content() == "Secondo turno."
+    with page.expect_download() as downloaded:
+        page.get_by_role("button", name="Download draft TXT").click()
+    saved = tmp_path / "draft.txt"
+    downloaded.value.save_as(saved)
+    assert saved.read_text(encoding="utf-8") == (
+        "DRAFT / UNREVIEWED\n\n"
+        "[00:00:00.100 - 00:00:00.900] Città\nprima\n\n"
+        "[00:00:01.000 - 00:00:02.200] Secondo turno.\n"
+    )
 
 
 @pytest.mark.parametrize("confirm", [False, True])

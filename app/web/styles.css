@@ -25,14 +25,19 @@ form, #segments {
   gap: 0.6rem;
 }
 
-input, select, textarea, button {
+input, select, button {
   font: inherit;
 }
 
-textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 5rem;
+.segment-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#segments h3 {
+  margin: 0;
+  font-size: 1rem;
 }
 
 button {

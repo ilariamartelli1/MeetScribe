@@ -14,6 +14,7 @@ let activeJob = null;
 let cancellationPending = false;
 let pollingError = false;
 let timer = null;
+let displayedSegments = [];
 
 function message(text) {
   status.textContent = text;
@@ -47,16 +48,20 @@ function timecode(milliseconds) {
 
 function renderTranscript(result) {
   segments.replaceChildren();
-  result.segments.forEach((segment, index) => {
-    const label = document.createElement("label");
-    const input = document.createElement("textarea");
+  displayedSegments = result.segments.map((segment) => ({
+    start_ms: segment.start_ms,
+    end_ms: segment.end_ms,
+    text: segment.text,
+  }));
+  displayedSegments.forEach((segment, index) => {
+    const heading = document.createElement("h3");
+    const text = document.createElement("p");
     const stamp = `${timecode(segment.start_ms)} - ${timecode(segment.end_ms)}`;
-    input.id = `segment-${index}`;
-    input.value = segment.text;
-    input.dataset.timestamp = stamp;
-    label.htmlFor = input.id;
-    label.textContent = `Segment ${index + 1} (${stamp})`;
-    segments.append(label, input);
+    heading.textContent = `Segment ${index + 1} (${stamp})`;
+    text.id = `segment-${index}`;
+    text.className = "segment-text";
+    text.textContent = segment.text;
+    segments.append(heading, text);
   });
   transcript.hidden = false;
 }
@@ -194,8 +199,9 @@ cancel.addEventListener("click", async () => {
 
 download.addEventListener("click", () => {
   const lines = ["DRAFT / UNREVIEWED", ""];
-  segments.querySelectorAll("textarea").forEach((input) => {
-    lines.push(`[${input.dataset.timestamp}] ${input.value}`, "");
+  displayedSegments.forEach((segment) => {
+    const stamp = `${timecode(segment.start_ms)} - ${timecode(segment.end_ms)}`;
+    lines.push(`[${stamp}] ${segment.text}`, "");
   });
   const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
