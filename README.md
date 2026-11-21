@@ -33,6 +33,8 @@ Unit tests live in `test/unit/`; Docker and GPU integration tests live in
 `test/integration/` and are opt-in. The CLion **Unit Tests** configuration can
 target `test/unit`, and **Integration Test** can target `test/integration` with
 `MEETSCRIBE_ASR_TESTS=1` and `MEETSCRIBE_DOCKER_TESTS=1`.
+See [test status](docs/test-status.md) for the latest recorded results and
+the configurations used.
 
 The browser integration tests use Playwright with fake inference. Install Chromium
 with `uv run --locked python -m playwright install chromium` if no supported browser
