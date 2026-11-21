@@ -13,6 +13,53 @@ case was added. The historical snapshot counts below have not been rerun as a
 full suite with these changes; the other integration results remain earlier
 observations.
 
+**Slice 2.4 update:** The optional speaker-attributed transcript download was
+added. The targeted fake-inference browser flow and browser-asset checks passed
+14 tests total (10 browser cases and 4 asset checks), including unknown-speaker,
+empty-result, safe-rendering and cancellation behavior. The English/Italian
+real-model output-shape check passed; its shared fixture ran both jobs in 31.90
+seconds. The separate exact-text check still failed with `Friday` → `Fragi` and
+`Elena` → `Elina`, and the repeated-sentence check remained an XFAIL.
+
+**All-opt-in test run:** On 2026-11-21, the complete suite ran with all opt-in
+flags enabled using:
+
+```sh
+MEETSCRIBE_ASR_TESTS=1 MEETSCRIBE_BROWSER_TESTS=1 MEETSCRIBE_DOCKER_TESTS=1 \
+MEETSCRIBE_TEXT_NORMALIZATION_TESTS=1 \
+uv run --locked python -m pytest -q -r a --durations=0
+```
+
+Result: **217 passed, 1 failed, 1 XFAIL, 0 skipped** in 352.51 seconds
+(5:52.51), with one Starlette/AnyIO deprecation warning. The failure was the
+known two-voice exact-text mismatch above. The real-model English/Italian
+speaker-attributed fixture setup took 31.90 seconds for both jobs; pytest
+attributes shared module-fixture setup to its first test.
+
+| Slow test or setup | Observed duration |
+|---|---:|
+| `test_checkpoint_wer.py::test_checkpoint_wer_and_negations` | 60.07 s |
+| `test_diarization_feasibility.py::test_offline_asr_then_diarization[cpu-None]` | 60.07 s |
+| `test_wetextprocessing.py::test_english_and_italian_rule_data` | 39.79 s |
+| `test_speaker_alignment.py` shared English/Italian fixture setup | 31.90 s |
+| `test_diarization_feasibility.py::test_offline_asr_then_diarization[cuda-None]` | 30.28 s |
+| `test_diarization_feasibility.py::test_offline_asr_then_diarization[cpu-mp3]` | 24.12 s |
+| `test_diarization_adapter.py::test_real_community1_adapter_identifies_two_synthetic_voices` | 14.32 s |
+| `test_asr_long_recording.py::test_five_minute_mp3_has_bounded_timestamps_and_final_speech` | 10.95 s |
+| `test_diarization_feasibility.py::test_cuda_diarization_fails_without_gpu` | 10.23 s |
+| `test_diarization_feasibility.py::test_diarization_rejects_nonpositive_run_count` | 10.19 s |
+| `test_asr_gpu_feasibility.py::test_offline_gpu_inference` | 8.04 s |
+| `test_asr_adapter.py::test_quiet_negations_and_silence_on_real_model` | 5.18 s |
+| `test_asr_accuracy.py::test_synthetic_speech_transcription` | 5.16 s |
+| `test_transcription_jobs.py::test_real_model_runs_in_an_owned_child` | 5.06 s |
+| `test_asr_repetition.py::test_repeated_sentence_on_real_model` | 4.74 s |
+| `test_docker.py::test_cpu_container_is_healthy_and_bound_to_loopback` | 3.60 s |
+
+These are single-run observations on the development host, not stable
+benchmarks. `--durations=0` hides test phases below 5 ms; other unit and browser
+cases were substantially shorter than the slowest integration checks. The
+historical 24-integration-case totals below do not include this new opt-in case.
+
 ## Summary
 
 - **Default suite:** 191 passed, 24 skipped, 0 failed. All 191 executed tests

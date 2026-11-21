@@ -17,7 +17,13 @@ import uvicorn
 from playwright.sync_api import Browser, Page, Route, sync_playwright
 
 import app.main as main
-from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
+from app.asr_contract import Language, ModelProvenance, TranscriptSegment
+from app.diarization_contract import (
+    Diarization,
+    DiarizationProvenance,
+    SpeakerTurn,
+)
+from app.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("MEETSCRIBE_BROWSER_TESTS") != "1",
@@ -34,16 +40,27 @@ class FakeBrowserJob:
     ) -> None:
         pass
 
-    def __call__(self, audio_path: Path, language: Language) -> Transcript:
+    def __call__(self, audio_path: Path, language: Language) -> AttributedTranscript:
         if language == "en":
             time.sleep(30)
-        return Transcript(
-            language,
-            1000,
-            (TranscriptSegment(100, 900, UNTRUSTED),),
-            ModelProvenance(
-                "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5
+        provenance = ModelProvenance(
+            "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5
+        )
+        turns = (SpeakerTurn(100, 900, "speaker-1"),)
+        return AttributedTranscript(
+            language=language,
+            duration_ms=1000,
+            segments=(TranscriptSegment(100, 900, UNTRUSTED),),
+            provenance=provenance,
+            diarization=Diarization(
+                duration_ms=1000,
+                turns=turns,
+                exclusive_turns=turns,
+                provenance=DiarizationProvenance(
+                    "fake", "1", "model", "revision", "cpu"
+                ),
             ),
+            attributions=(SpeakerAttribution(100, 900, "Voice 1"),),
         )
 
 
@@ -118,6 +135,15 @@ def test_real_api_upload_read_only_and_download(page: Page, tmp_path: Path) -> N
         ).count()
         == 0
     )
+    assert page.locator("#speaker-attributed-download").get_attribute("open") is None
+    assert (
+        page.locator(
+            "#speaker-attributed-download input, "
+            "#speaker-attributed-download textarea, "
+            "#speaker-attributed-download [contenteditable]"
+        ).count()
+        == 0
+    )
     text.click()
     page.keyboard.type("Attempted edit")
     assert text.inner_text() == UNTRUSTED
@@ -130,6 +156,22 @@ def test_real_api_upload_read_only_and_download(page: Page, tmp_path: Path) -> N
     assert saved.read_text() == (
         f"DRAFT / UNREVIEWED\n\n[00:00:00.100 - 00:00:00.900] {UNTRUSTED}\n"
     )
+    page.locator("#speaker-attributed-download summary").click()
+    with page.expect_download() as downloaded:
+        page.get_by_role("button", name="Download speaker-attributed TXT").click()
+    saved = tmp_path / "speaker-attributed.txt"
+    downloaded.value.save_as(saved)
+    assert (
+        downloaded.value.suggested_filename == "meetscribe-speaker-attributed-draft.txt"
+    )
+    assert saved.read_text() == (
+        "DRAFT / UNREVIEWED\n"
+        'Speaker labels are anonymous and may be incorrect. "Unknown speaker" '
+        "means no unique speaker was assigned.\n\n"
+        f"[00:00:00.100 - 00:00:00.900] Voice 1: {UNTRUSTED}\n"
+    )
+    assert page.locator("#segments img").count() == 0
+    assert page.evaluate("window.injected") is None
     assert page.evaluate("localStorage.length") == 0
     assert page.evaluate("sessionStorage.length") == 0
     assert page.evaluate("indexedDB.databases().then(items => items.length)") == 0
@@ -155,7 +197,11 @@ def test_download_preserves_multiple_original_segments(
                                 "end_ms": 2200,
                                 "text": "Secondo turno.",
                             },
-                        ]
+                        ],
+                        "attributions": [
+                            {"start_ms": 100, "end_ms": 900, "speaker": "Voice 1"},
+                            {"start_ms": 1000, "end_ms": 2200, "speaker": None},
+                        ],
                     },
                 }
             )
@@ -175,6 +221,66 @@ def test_download_preserves_multiple_original_segments(
         "[00:00:00.100 - 00:00:00.900] Città\nprima\n\n"
         "[00:00:01.000 - 00:00:02.200] Secondo turno.\n"
     )
+    page.locator("#speaker-attributed-download summary").click()
+    with page.expect_download() as downloaded:
+        page.get_by_role("button", name="Download speaker-attributed TXT").click()
+    saved = tmp_path / "speaker-attributed.txt"
+    downloaded.value.save_as(saved)
+    assert saved.read_text(encoding="utf-8") == (
+        "DRAFT / UNREVIEWED\n"
+        'Speaker labels are anonymous and may be incorrect. "Unknown speaker" '
+        "means no unique speaker was assigned.\n\n"
+        "[00:00:00.100 - 00:00:00.900] Voice 1: Città\nprima\n\n"
+        "[00:00:01.000 - 00:00:02.200] Unknown speaker: Secondo turno.\n"
+    )
+
+
+def test_empty_transcript_has_no_download_actions(page: Page) -> None:
+    def handle(route: Route) -> None:
+        if route.request.method == "POST":
+            route.fulfill(status=202, json={"job_id": "job"})
+        else:
+            route.fulfill(
+                json={
+                    "state": "succeeded",
+                    "result": {"segments": [], "attributions": []},
+                }
+            )
+
+    page.route("**/api/v1/jobs**", handle)
+    select_sample(page)
+    page.get_by_role("button", name="Transcribe").click()
+    page.get_by_text(
+        "Transcription complete, but no transcript segments are available."
+    ).wait_for()
+    assert page.locator("#empty-transcript").is_visible()
+    assert page.locator("#download").is_hidden()
+    assert page.locator("#speaker-attributed-download").is_hidden()
+    assert page.locator("#speaker-download-unavailable").is_hidden()
+
+
+def test_speaker_download_requires_aligned_attributions(page: Page) -> None:
+    def handle(route: Route) -> None:
+        if route.request.method == "POST":
+            route.fulfill(status=202, json={"job_id": "job"})
+        else:
+            route.fulfill(
+                json={
+                    "state": "succeeded",
+                    "result": {
+                        "segments": [{"start_ms": 100, "end_ms": 900, "text": "Hello"}],
+                        "attributions": [],
+                    },
+                }
+            )
+
+    page.route("**/api/v1/jobs**", handle)
+    select_sample(page)
+    page.get_by_role("button", name="Transcribe").click()
+    page.get_by_text("Transcription complete. Review the draft below.").wait_for()
+    assert page.locator("#download").is_visible()
+    assert page.locator("#speaker-download-unavailable").is_visible()
+    assert page.locator("#speaker-attributed-download").is_hidden()
 
 
 @pytest.mark.parametrize("confirm", [False, True])

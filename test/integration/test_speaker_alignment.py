@@ -98,7 +98,7 @@ def attributed_job_report(asr_image: str) -> str:
         ],
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=540,
     )
     assert result.returncode == 0, (
         f"Speaker job failed:\n{result.stderr}\n{result.stdout}"
@@ -113,7 +113,7 @@ def attributed_job_report(asr_image: str) -> str:
 def test_offline_job_attributes_alternating_synthetic_voices(
     attributed_job_report: str,
 ) -> None:
-    report = json.loads(attributed_job_report)
+    report = json.loads(attributed_job_report)["en"]
     assert report["provenance"]["device"] == "cuda"
     assert report["diarization"]["provenance"]["device"] == "cuda"
     segments = report["segments"]
@@ -132,6 +132,30 @@ def test_offline_job_attributes_alternating_synthetic_voices(
     assert interval_speakers[0] != interval_speakers[1]
 
 
+@pytest.mark.skipif(
+    os.environ.get("MEETSCRIBE_ASR_TESTS") != "1",
+    reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
+)
+def test_offline_job_produces_segments_and_turns_in_english_and_italian(
+    attributed_job_report: str,
+) -> None:
+    reports = json.loads(attributed_job_report)
+    for language in ("en", "it"):
+        report = reports[language]
+        assert report["language"] == language
+        assert report["segments"]
+        assert report["diarization"]["turns"]
+        attributions = report["attributions"]
+        assert len(attributions) == len(report["segments"])
+        assert all(
+            (segment["start_ms"], segment["end_ms"])
+            == (attribution["start_ms"], attribution["end_ms"])
+            for segment, attribution in zip(
+                report["segments"], attributions, strict=True
+            )
+        )
+
+
 def assert_complete_transcript(actual: str, expected: str) -> None:
     assert normalize_text(actual) == normalize_text(expected), (
         f"Expected: {expected!r}; actual: {actual!r}"
@@ -145,7 +169,7 @@ def assert_complete_transcript(actual: str, expected: str) -> None:
 def test_offline_job_transcribes_all_two_voice_speech(
     attributed_job_report: str,
 ) -> None:
-    report = json.loads(attributed_job_report)
+    report = json.loads(attributed_job_report)["en"]
     expected = (ROOT / "test/data/smoke/two-voices-script.txt").read_text(
         encoding="utf-8"
     )

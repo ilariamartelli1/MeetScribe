@@ -2,7 +2,7 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings and provides experimental speaker attribution through its job API. Editable draft minutes and saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, view a read-only transcript, and download an unreviewed draft. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, view a read-only transcript, and download an unreviewed draft with optional anonymous speaker labels. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
 **Planned workflow:** The final browser UI will display and allow editing only
 of the summary, including decisions, action items, owners and deadlines.
@@ -102,6 +102,10 @@ before starting a job. After starting the GPU configuration, open
 `http://127.0.0.1:8000/` in a browser.
 Select a mono or stereo WAV or MP3 (up to five minutes and 100 MB), choose its language,
 and transcribe. View the read-only timestamped draft and download it as TXT.
+The collapsed "Optional speaker-attributed transcript download" disclosure
+provides a second TXT with anonymous speaker labels; segments without a unique
+speaker are marked "Unknown speaker". These labels may be incorrect and do not
+identify people.
 Cancel stops an active job; if the 16-result limit is reached, the page
 asks before replacing the oldest result. Results are temporary and are not
 restored on refresh or restart. Downloads are stored by the browser and are not
@@ -302,19 +306,23 @@ alternating intervals, but does not establish accuracy on real meetings.
 
 The result retains the original `segments` and ASR `provenance`, and adds `diarization` (including ordinary overlapping turns, exclusive turns, and model provenance) and a parallel `attributions` array. Each attribution has the original segment's `start_ms`, `end_ms` and a `speaker` label or `null` for unknown. Labels such as `Voice 1` are assigned by first diarized appearance within that recording; simultaneous first appearances are ordered by model speaker ID. A segment receives a label only when its time overlaps exactly one distinct speaker in ordinary diarization; no overlap or multiple speakers produces `null`. Even one overlap may be wrong if timestamps or diarization are inaccurate. The approach does not split segments, assign individual words, identify people, or guarantee speaker accuracy. Alignment fails if independently decoded durations differ by more than 20 ms.
 
-The opt-in offline GPU check exercises the full job with the two-voice fixture:
+The opt-in offline GPU check runs the full job with an English two-voice fixture
+and a short Italian fixture:
 
 ```sh
 MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q \
   test/integration/test_speaker_alignment.py
 ```
 
-It separately checks the complete transcript against `two-voices-script.txt`
-and checks consistently distinct labels covering at least 80% of transcribed
-time in each source interval, with at least one second transcribed. This
-coverage check cannot detect omitted speech. An observed transcription
-substituted "Fragi" for "Friday" and "Elina" for "Elena", so the text check
-failed. These checks do not verify word-level timing or accuracy on real meetings.
+The output-shape check requires transcript segments, diarization turns and
+matching attribution intervals in both languages; it does not assert word or
+speaker accuracy. The English-specific checks also require consistently
+distinct labels covering at least 80% of transcribed time in each source
+interval, with at least one second transcribed, and compare the complete
+transcript with `two-voices-script.txt`. The coverage check cannot detect
+omitted speech. An observed English transcription substituted "Fragi" for
+"Friday" and "Elina" for "Elena", so the exact-text check failed. These checks
+do not verify word-level timing or accuracy on real meetings.
 
 The isolated `repeated-sentence.wav` contains two copies of the same Flite
 sample and has its own script. Its opt-in check documents a known omission:

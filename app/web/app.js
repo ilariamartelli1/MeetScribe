@@ -9,12 +9,17 @@ const status = document.querySelector("#status");
 const error = document.querySelector("#error");
 const transcript = document.querySelector("#transcript");
 const segments = document.querySelector("#segments");
+const emptyTranscript = document.querySelector("#empty-transcript");
 const download = document.querySelector("#download");
+const speakerAttributedDownload = document.querySelector("#speaker-attributed-download");
+const downloadAttributed = document.querySelector("#download-attributed");
+const speakerDownloadUnavailable = document.querySelector("#speaker-download-unavailable");
 let activeJob = null;
 let cancellationPending = false;
 let pollingError = false;
 let timer = null;
 let displayedSegments = [];
+let displayedSpeakerLabels = null;
 
 function message(text) {
   status.textContent = text;
@@ -47,12 +52,45 @@ function timecode(milliseconds) {
 }
 
 function renderTranscript(result) {
+  if (
+    !result ||
+    !Array.isArray(result.segments) ||
+    !result.segments.every(
+      (segment) =>
+        segment &&
+        Number.isInteger(segment.start_ms) &&
+        Number.isInteger(segment.end_ms) &&
+        typeof segment.text === "string",
+    )
+  ) {
+    return null;
+  }
+
   segments.replaceChildren();
   displayedSegments = result.segments.map((segment) => ({
     start_ms: segment.start_ms,
     end_ms: segment.end_ms,
     text: segment.text,
   }));
+  const attributions = result.attributions;
+  const hasAlignedAttributions =
+    Array.isArray(attributions) &&
+    attributions.length === displayedSegments.length &&
+    attributions.every((attribution, index) => {
+      const segment = displayedSegments[index];
+      return (
+        attribution &&
+        attribution.start_ms === segment.start_ms &&
+        attribution.end_ms === segment.end_ms &&
+        (attribution.speaker === null ||
+          (typeof attribution.speaker === "string" &&
+            attribution.speaker.trim().length > 0))
+      );
+    });
+  displayedSpeakerLabels = hasAlignedAttributions
+    ? attributions.map((attribution) => attribution.speaker)
+    : null;
+
   displayedSegments.forEach((segment, index) => {
     const heading = document.createElement("h3");
     const text = document.createElement("p");
@@ -63,7 +101,16 @@ function renderTranscript(result) {
     text.textContent = segment.text;
     segments.append(heading, text);
   });
+  const hasSegments = displayedSegments.length > 0;
+  emptyTranscript.hidden = hasSegments;
+  download.hidden = !hasSegments;
+  speakerAttributedDownload.hidden =
+    !hasSegments || displayedSpeakerLabels === null;
+  speakerAttributedDownload.open = false;
+  speakerDownloadUnavailable.hidden =
+    !hasSegments || displayedSpeakerLabels !== null;
   transcript.hidden = false;
+  return hasSegments;
 }
 
 async function request(url, options = {}) {
@@ -82,10 +129,19 @@ function finish() {
 function applySnapshot(snapshot, jobId) {
   if (activeJob !== jobId) return;
   if (snapshot.state === "succeeded") {
-    renderTranscript(snapshot.result);
+    const hasSegments = renderTranscript(snapshot.result);
     finish();
     clearError();
-    message("Transcription complete. Review the draft below.");
+    if (hasSegments === null) {
+      message("Transcription failed.");
+      showError("The server returned an invalid transcript result.");
+      return;
+    }
+    message(
+      hasSegments
+        ? "Transcription complete. Review the draft below."
+        : "Transcription complete, but no transcript segments are available.",
+    );
   } else if (snapshot.state === "failed") {
     finish();
     message("Transcription failed.");
@@ -128,6 +184,17 @@ async function poll(jobId) {
     }
   }
   if (activeJob === jobId) timer = setTimeout(() => poll(jobId), 1000);
+}
+
+function downloadTextFile(filename, contents) {
+  const url = URL.createObjectURL(
+    new Blob([contents], { type: "text/plain;charset=utf-8" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 form.addEventListener("submit", async (event) => {
@@ -203,10 +270,20 @@ download.addEventListener("click", () => {
     const stamp = `${timecode(segment.start_ms)} - ${timecode(segment.end_ms)}`;
     lines.push(`[${stamp}] ${segment.text}`, "");
   });
-  const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "meetscribe-draft.txt";
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadTextFile("meetscribe-draft.txt", lines.join("\n"));
+});
+
+downloadAttributed.addEventListener("click", () => {
+  if (!displayedSegments.length || displayedSpeakerLabels === null) return;
+  const lines = [
+    "DRAFT / UNREVIEWED",
+    'Speaker labels are anonymous and may be incorrect. "Unknown speaker" means no unique speaker was assigned.',
+    "",
+  ];
+  displayedSegments.forEach((segment, index) => {
+    const stamp = `${timecode(segment.start_ms)} - ${timecode(segment.end_ms)}`;
+    const speaker = displayedSpeakerLabels[index] ?? "Unknown speaker";
+    lines.push(`[${stamp}] ${speaker}: ${segment.text}`, "");
+  });
+  downloadTextFile("meetscribe-speaker-attributed-draft.txt", lines.join("\n"));
 });
