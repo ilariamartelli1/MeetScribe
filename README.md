@@ -9,7 +9,11 @@ of the summary, including decisions, action items, owners and deadlines.
 Transcript text and speaker-attributed segments will not be displayed or
 editable in the browser. An optional, non-conspicuous button outside the front
 page will download the unedited transcript with speaker labels for verification
-or debugging. Summary generation and editing are not implemented yet.
+or debugging. Original uploaded audio will be saved for later download until
+deletion or expiry, but the browser will not play it. Summary generation,
+editing and persistent meeting storage are not implemented yet.
+See [storage and scaling estimates](docs/storage-and-scaling.md) for longer
+recordings and potential team use.
 
 ## Local setup
 
