@@ -14,6 +14,7 @@ import pytest
 
 from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
 from app.diarization_contract import Diarization, DiarizationProvenance, SpeakerTurn
+from app.inference_gate import InferenceGate, InferenceGateUnavailableError
 from app.speaker_alignment import AttributedTranscript, align_speakers
 from app.transcription_jobs import (
     CoordinatorClosedError,
@@ -135,6 +136,50 @@ def test_running_job_is_pollable_and_rejects_concurrent_work(tmp_path: Path) -> 
         assert result.segments[0].text == "first.wav"
         next_id = coordinator.submit(Path("second.wav"))
         wait_for(lambda: coordinator.get(next_id).state == "succeeded")
+    finally:
+        coordinator.shutdown()
+
+
+def test_shared_inference_gate_serializes_transcription_and_model_requests(
+    tmp_path: Path,
+) -> None:
+    gate = InferenceGate()
+    coordinator = TranscriptionCoordinator(
+        FakeJob(tmp_path, "wait"), inference_gate=gate
+    )
+    try:
+        assert gate.try_acquire()
+        with pytest.raises(JobBusyError, match="GPU inference"):
+            coordinator.submit(Path("blocked.wav"))
+        assert not (tmp_path / "started-blocked.wav").exists()
+        gate.release()
+
+        job_id = coordinator.submit(Path("running.wav"))
+        wait_for(lambda: (tmp_path / "started").exists())
+        assert gate.try_acquire() is False
+        assert coordinator.cancel(job_id).state == "cancelled"
+        assert gate.try_acquire()
+        gate.release()
+
+        (tmp_path / "release").touch()
+        next_id = coordinator.submit(Path("next.wav"))
+        wait_for(lambda: coordinator.get(next_id).state == "succeeded")
+        assert gate.try_acquire()
+        gate.release()
+    finally:
+        coordinator.shutdown()
+
+
+def test_unavailable_inference_gate_prevents_transcription_start(
+    tmp_path: Path,
+) -> None:
+    gate = InferenceGate()
+    gate.mark_unavailable("Ollama model release was not confirmed.")
+    coordinator = TranscriptionCoordinator(FakeJob(tmp_path), inference_gate=gate)
+    try:
+        with pytest.raises(InferenceGateUnavailableError):
+            coordinator.submit(Path("blocked.wav"))
+        assert not (tmp_path / "started-blocked.wav").exists()
     finally:
         coordinator.shutdown()
 

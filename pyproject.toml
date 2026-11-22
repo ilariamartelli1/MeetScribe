@@ -8,6 +8,8 @@ dependencies = [
     "ctranslate2==4.8.5",
     "fastapi==0.115.12",
     "faster-whisper==1.2.1",
+    "httpx==0.28.1",
+    "pydantic==2.14.3",
     "python-multipart==0.0.32",
     "uvicorn==0.34.3",
 ]
@@ -24,7 +26,6 @@ diarization = [
     "torchcodec==0.7.0",
 ]
 dev = [
-    "httpx==0.28.1",
     "jiwer==4.0.0",
     "mypy==1.15.0",
     "nemo-text-processing==1.2.0",

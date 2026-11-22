@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 from app.asr_contract import Language, Transcript
+from app.inference_gate import InferenceGate
 from app.speaker_alignment import AttributedTranscript
 
 JobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
@@ -92,6 +93,7 @@ class TranscriptionCoordinator:
         max_results: int = 16,
         shutdown_timeout_seconds: float = 5,
         clock: Callable[[], float] = time.monotonic,
+        inference_gate: InferenceGate | None = None,
     ) -> None:
         if (
             not math.isfinite(result_lifetime_seconds)
@@ -106,6 +108,9 @@ class TranscriptionCoordinator:
         self._capacity = max_results
         self._shutdown_timeout = shutdown_timeout_seconds
         self._clock = clock
+        self._inference_gate = inference_gate or InferenceGate()
+        self._gate_state_lock = threading.Lock()
+        self._inference_gate_held = False
         self._context = multiprocessing.get_context("spawn")
         self._lock = threading.Lock()
         self._changed = threading.Condition(self._lock)
@@ -171,10 +176,23 @@ class TranscriptionCoordinator:
                 target=_run_job, args=(self._job, audio_path, language, sender)
             )
             try:
+                gate_acquired = self._inference_gate.try_acquire()
+            except BaseException:
+                receiver.close()
+                sender.close()
+                raise
+            if not gate_acquired:
+                receiver.close()
+                sender.close()
+                raise JobBusyError("Another GPU inference request is already running.")
+            with self._gate_state_lock:
+                self._inference_gate_held = True
+            try:
                 process.start()
             except BaseException:
                 receiver.close()
                 sender.close()
+                self._release_inference_gate()
                 raise
             sender.close()
             if cleanup_audio:
@@ -206,6 +224,7 @@ class TranscriptionCoordinator:
                     self._changed.notify_all()
                     raise
                 self._active = None
+                self._release_inference_gate()
                 raise
             if len(self._records) > self._capacity:
                 assert oldest_id is not None
@@ -219,6 +238,11 @@ class TranscriptionCoordinator:
             if record is None:
                 raise JobNotFoundError(f"Unknown or expired job: {job_id}")
             return record.snapshot
+
+    def job_ids(self) -> frozenset[str]:
+        with self._lock:
+            self._expire_results()
+            return frozenset(self._records)
 
     def manages_audio(self, audio_path: Path) -> bool:
         with self._lock:
@@ -307,6 +331,8 @@ class TranscriptionCoordinator:
                         still_running = monitor.is_alive()
                 if still_running:
                     raise RuntimeError("The transcription worker did not stop.")
+                if monitor is None:
+                    self._release_inference_gate()
             if self._managed_audio is not None:
                 self._managed_audio.unlink(missing_ok=True)
                 self._managed_audio = None
@@ -345,6 +371,18 @@ class TranscriptionCoordinator:
                 self._changed.wait(timeout)
 
     def _monitor(self, job_id: str, process: BaseProcess, receiver: Connection) -> None:
+        try:
+            self._monitor_result(job_id, process, receiver)
+        finally:
+            if process.is_alive():
+                self._inference_gate.mark_unavailable(
+                    "The transcription worker did not stop cleanly."
+                )
+            self._release_inference_gate()
+
+    def _monitor_result(
+        self, job_id: str, process: BaseProcess, receiver: Connection
+    ) -> None:
         try:
             try:
                 outcome = receiver.recv()
@@ -398,3 +436,10 @@ class TranscriptionCoordinator:
             self._active = None
             if cleanup_error is None:
                 self._managed_audio = None
+
+    def _release_inference_gate(self) -> None:
+        with self._gate_state_lock:
+            if not self._inference_gate_held:
+                return
+            self._inference_gate_held = False
+        self._inference_gate.release()

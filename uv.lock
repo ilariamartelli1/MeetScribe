@@ -880,6 +880,8 @@ dependencies = [
     { name = "ctranslate2" },
     { name = "fastapi" },
     { name = "faster-whisper" },
+    { name = "httpx" },
+    { name = "pydantic" },
     { name = "python-multipart" },
     { name = "uvicorn" },
 ]
@@ -890,7 +892,6 @@ cuda = [
     { name = "nvidia-cudnn-cu12" },
 ]
 dev = [
-    { name = "httpx" },
     { name = "jiwer" },
     { name = "mypy" },
     { name = "nemo-text-processing" },
@@ -912,6 +913,8 @@ requires-dist = [
     { name = "ctranslate2", specifier = "==4.8.5" },
     { name = "fastapi", specifier = "==0.115.12" },
     { name = "faster-whisper", specifier = "==1.2.1" },
+    { name = "httpx", specifier = "==0.28.1" },
+    { name = "pydantic", specifier = "==2.14.3" },
     { name = "python-multipart", specifier = "==0.0.32" },
     { name = "uvicorn", specifier = "==0.34.3" },
 ]
@@ -922,7 +925,6 @@ cuda = [
     { name = "nvidia-cudnn-cu12", specifier = "==9.10.2.21" },
 ]
 dev = [
-    { name = "httpx", specifier = "==0.28.1" },
     { name = "jiwer", specifier = "==4.0.0" },
     { name = "mypy", specifier = "==1.15.0" },
     { name = "nemo-text-processing", specifier = "==1.2.0" },

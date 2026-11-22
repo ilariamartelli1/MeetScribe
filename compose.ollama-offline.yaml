@@ -1,0 +1,4 @@
+services:
+  app:
+    networks: !override [inference]
+    ports: !reset []

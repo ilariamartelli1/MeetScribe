@@ -1,0 +1,29 @@
+name = "Qwen3 4B Q4_K_M"
+model = "qwen3:4b"
+model_digest = "sha256:359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
+model_layer_digest = "sha256:3e4cb14174460404e7a233e531675303b2fbf7749c02f91864fe311ab6344e4f"
+model_layer_size_bytes = 2497280480
+license_layer_digest = "sha256:d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12"
+quantization = "Q4_K_M"
+upstream_model_id = "Qwen/Qwen3-4B"
+source_url = "https://ollama.com/library/qwen3:4b"
+license = "Apache-2.0"
+license_url = "https://huggingface.co/Qwen/Qwen3-4B/blob/main/LICENSE"
+
+ollama_image = "ollama/ollama:0.40.17"
+ollama_image_digest = "sha256:ccc42bcd3d5fcf7ab0d532b300382154e1a4da56fc666bdb313b78ebdd912754"
+ollama_linux_amd64_digest = "sha256:5e5802d3c018ecdee7c7dff32a7e3b10ca9a2c4b3a461392cff97c313c2af0fc"
+
+[smoke]
+context_size = 4096
+max_generated_tokens = 16
+temperature = 0.0
+keep_alive = "5m"
+think = false
+response_format = "json"
+
+[extraction]
+context_size = 4096
+max_generated_tokens = 768
+chat_template_reserve_tokens = 128
+temperature = 0.0
