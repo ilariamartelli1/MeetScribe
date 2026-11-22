@@ -42,7 +42,8 @@ def test_front_page_does_not_render_transcript_content() -> None:
     assert response.status_code == 200
     assert 'id="segments"' not in response.text
     assert 'id="transcript"' not in response.text
-    assert 'id="transcript-tools"' in response.text
+    assert '<div id="transcript-tools" hidden>' in response.text
+    assert '<button id="download-transcript" type="button">' in response.text
     assert 'id="regenerate-minutes"' in response.text
 
 

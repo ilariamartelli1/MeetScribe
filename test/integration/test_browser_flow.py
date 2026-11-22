@@ -173,7 +173,7 @@ def _minutes_snapshot(job_id: str, state: str = "succeeded") -> dict[str, object
     }
 
 
-def test_real_api_upload_summary_edit_review_and_separate_download(
+def test_real_api_upload_summary_edit_review_and_direct_transcript_download(
     page: Page, tmp_path: Path
 ) -> None:
     assert (
@@ -232,8 +232,19 @@ def test_real_api_upload_summary_edit_review_and_separate_download(
     page.get_by_text("Current summary revision marked as reviewed.").wait_for()
     assert page.locator("#review-status").inner_text() == "REVIEWED"
 
-    page.get_by_role("link", name="Optional transcript download").click()
-    page.get_by_role("heading", name="Optional transcript download").wait_for()
+    page.locator("#summary-text").fill("Unsaved summary changes.")
+    original_url = page.url
+    page.route(
+        "**/transcript.txt",
+        lambda route: route.fulfill(status=404, json={"detail": "Transcript expired."}),
+    )
+    page.get_by_role("button", name="Download transcript TXT").click()
+    page.get_by_text("Transcript expired.").wait_for()
+    assert page.url == original_url
+    assert page.locator("#summary-text").input_value() == "Unsaved summary changes."
+    assert page.get_by_role("button", name="Save edits").is_enabled()
+    page.unroute("**/transcript.txt")
+
     assert UNTRUSTED not in page.locator("body").inner_text()
     with page.expect_download() as downloaded:
         page.get_by_role("button", name="Download transcript TXT").click()
@@ -242,6 +253,10 @@ def test_real_api_upload_summary_edit_review_and_separate_download(
     transcript = saved.read_text(encoding="utf-8")
     assert "Speaker labels are anonymous" in transcript
     assert f"Voice 1: {UNTRUSTED}" in transcript
+    assert page.url == original_url
+    assert page.locator("#summary-text").input_value() == "Unsaved summary changes."
+    assert page.get_by_role("button", name="Save edits").is_enabled()
+    assert page.locator("#transcript-error").is_hidden()
 
 
 def test_regeneration_requires_confirmation_before_replacing_saved_edits(

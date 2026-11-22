@@ -56,7 +56,7 @@ button:disabled {
   margin-top: 0.5rem;
 }
 
-#error {
+#error, #transcript-error {
   color: #9c1b18;
 }
 
@@ -90,6 +90,13 @@ footer {
   font-size: 0.85rem;
 }
 
-footer a {
+footer a, footer button {
   color: #526371;
+}
+
+footer button {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-decoration: underline;
 }

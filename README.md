@@ -12,13 +12,13 @@ MeetScribe is a local, Dockerized meeting assistant in development. It transcrib
 - [`docs/`](docs/README.md): architecture notes, reports, investigations and status. [`plan.md`](plan.md) tracks development.
 - `Dockerfile` and `compose*.yaml`: container build and runtime configurations.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. With the optional local Ollama profile running, a local browser page accepts bounded WAV/MP3 uploads, shows and edits only the draft meeting summary, supports review, and downloads matching TXT/JSON minutes. TXT contains minutes only; JSON export v1 also contains source transcript segments and anonymous speaker IDs. Transcript text is not included in normal job-status responses or displayed in the browser; a low-prominence footer link opens a separate page for an explicit transcript TXT download. Results are temporary and are not restored on refresh or restart. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. With the optional local Ollama profile running, a local browser page accepts bounded WAV/MP3 uploads, shows and edits only the draft meeting summary, supports review, and downloads matching TXT/JSON minutes. TXT contains minutes only; JSON export v1 also contains source transcript segments and anonymous speaker IDs. Transcript text is not included in normal job-status responses or displayed in the browser; a low-prominence footer button downloads it explicitly without leaving the page. Results are temporary and are not restored on refresh or restart. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
 **Product direction:** The browser displays and allows editing only of the
 summary, including topics, decisions, action items, owners and deadlines.
 Transcript text and speaker-attributed segments are not displayed or editable
-in the browser. An optional, non-conspicuous download button on a separate page
-provides the unedited transcript with anonymous speaker labels for verification
+in the browser. An optional, non-conspicuous footer download button provides
+the unedited transcript with anonymous speaker labels for verification
 or debugging. Original uploaded audio will be saved for later download until
 deletion or expiry, but the browser will not play it. Persistent meeting
 storage, saved audio, manual deletion and seven-day expiry are not implemented.
@@ -221,8 +221,8 @@ A replaced source transcript marks its minutes stale; regeneration is
 deliberate, requires confirmation before replacing saved edits, and preserves
 the previous draft if it fails or is cancelled. The front page
 does not display transcript text or speaker labels. Its low-prominence footer
-link opens a separate page where the unedited transcript can be explicitly
-downloaded as TXT; anonymous speaker labels may be incorrect and do not
+button downloads the unedited transcript as TXT without leaving the page or
+discarding unsaved summary edits; anonymous speaker labels may be incorrect and do not
 identify people. Cancel stops transcription or summary generation. If the
 16-result limit is reached, the page asks before replacing the oldest result.
 Results are held temporarily in memory and are not restored on refresh or

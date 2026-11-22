@@ -20,6 +20,8 @@ const downloadMinutesJson = document.querySelector("#download-minutes-json");
 const regenerateMinutes = document.querySelector("#regenerate-minutes");
 const retryMinutes = document.querySelector("#retry-minutes");
 const transcriptTools = document.querySelector("#transcript-tools");
+const downloadTranscript = document.querySelector("#download-transcript");
+const transcriptError = document.querySelector("#transcript-error");
 
 let activeJob = null;
 let activeStage = null;
@@ -281,8 +283,6 @@ async function applyTranscriptionSnapshot(snapshot, jobId) {
   if (activeJob !== jobId) return;
   if (snapshot.state === "succeeded") {
     latestJobId = jobId;
-    transcriptTools.href =
-      `/transcript-download?job_id=${encodeURIComponent(jobId)}`;
     transcriptTools.hidden = false;
     activeStage = "minutes";
     await beginMinutes(jobId);
@@ -371,7 +371,7 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function downloadFile(url, filename) {
+async function downloadFile(url, filename, reportError = showError) {
   try {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
@@ -385,7 +385,7 @@ async function downloadFile(url, filename) {
     }
     downloadBlob(await response.blob(), filename);
   } catch (problem) {
-    showError(problem.message);
+    reportError(problem.message);
   }
 }
 
@@ -505,6 +505,21 @@ downloadMinutesJson.addEventListener("click", () => {
   }
 });
 
+downloadTranscript.addEventListener("click", () => {
+  if (latestJobId) {
+    transcriptError.hidden = true;
+    transcriptError.textContent = "";
+    downloadFile(
+      `/api/v1/jobs/${encodeURIComponent(latestJobId)}/transcript.txt`,
+      "meetscribe-transcript.txt",
+      (text) => {
+        transcriptError.textContent = text;
+        transcriptError.hidden = false;
+      },
+    );
+  }
+});
+
 retryMinutes.addEventListener("click", () => {
   if (latestJobId) startMinutes(latestJobId);
 });
@@ -597,6 +612,8 @@ form.addEventListener("submit", async (event) => {
       dirty = false;
       staleMinutes = false;
       transcriptTools.hidden = true;
+      transcriptError.hidden = true;
+      transcriptError.textContent = "";
       updateEditorButtons();
       setBusy(true);
       message("Transcribing and analyzing speakers...");
