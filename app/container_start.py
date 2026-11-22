@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 
-from app.asr_contract import CPU_DEVICE, CUDA_DEVICE
+from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE
 
 
 def check_device(device: str) -> None:

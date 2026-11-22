@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from app.asr_contract import Device
+from app.core.asr_contract import Device
 
 
 @dataclass(frozen=True)

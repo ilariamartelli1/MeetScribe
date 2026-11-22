@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.minutes_contract import (
+from app.core.minutes_contract import (
     MeetingExportV1,
     MinutesActionItem,
     MinutesDecision,

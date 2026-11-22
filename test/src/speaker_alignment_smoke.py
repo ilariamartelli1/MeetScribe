@@ -5,10 +5,10 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from app.asr_contract import Language
-from app.speaker_alignment import AttributedTranscript
-from app.transcription_jobs import TranscriptionCoordinator
-from app.transcription_worker import SpeakerAttributedJob
+from app.core.asr_contract import Language
+from app.core.speaker_alignment import AttributedTranscript
+from app.core.transcription_jobs import TranscriptionCoordinator
+from app.core.transcription_worker import SpeakerAttributedJob
 
 JOB_TIMEOUT_SECONDS = 240
 

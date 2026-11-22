@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.asr_contract import Language
+from app.core.asr_contract import Language
 
 ReviewStatus = Literal["DRAFT / UNREVIEWED", "REVIEWED"]
 

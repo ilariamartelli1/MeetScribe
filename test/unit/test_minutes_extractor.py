@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from app.asr_contract import Language, ModelProvenance, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance
-from app.minutes_extractor import (
+from app.core.asr_contract import Language, ModelProvenance, TranscriptSegment
+from app.core.diarization_contract import Diarization, DiarizationProvenance
+from app.core.minutes_extractor import (
     DEFAULT_MINUTES_EXTRACTION_BUDGET,
     MinutesContextBudgetError,
     MinutesExtractionBudget,
@@ -17,9 +17,9 @@ from app.minutes_extractor import (
     build_minutes_prompt,
     prompt_token_upper_bound,
 )
-from app.minutes_validation import MinutesEvidenceError, MinutesResponseShapeError
-from app.ollama_client import OllamaGenerationResult
-from app.speaker_alignment import AttributedTranscript, SpeakerAttribution
+from app.core.minutes_validation import MinutesEvidenceError, MinutesResponseShapeError
+from app.adapters.ollama_client import OllamaGenerationResult
+from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
 ASR_PROVENANCE = ModelProvenance(
     "fake", "1.0", "asr", "revision", "digest", "cpu", "int8", True, 5

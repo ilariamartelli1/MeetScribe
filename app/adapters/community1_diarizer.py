@@ -11,13 +11,13 @@ from typing import Any
 
 import av
 
-from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
-from app.diarization_contract import (
+from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
+from app.core.diarization_contract import (
     Diarization,
     DiarizationProvenance,
     SpeakerTurn,
 )
-from app.model_integrity import MANIFEST_DIR, load_manifest, verify_model
+from app.infrastructure.model_integrity import MANIFEST_DIR, load_manifest, verify_model
 
 MODEL_MANIFEST = load_manifest(MANIFEST_DIR / "community1.toml")
 SAMPLE_RATE_HZ = 16_000

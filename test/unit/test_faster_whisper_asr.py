@@ -10,8 +10,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from app import faster_whisper_asr as adapter
-from app.asr_service import InvalidTranscriptError, NoSpeechError, TranscriptionService
+from app.adapters import faster_whisper_asr as adapter
+from app.core.asr_service import (
+    InvalidTranscriptError,
+    NoSpeechError,
+    TranscriptionService,
+)
 
 
 @pytest.fixture
@@ -49,7 +53,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
     constructor = Mock(return_value=model)
     monkeypatch.setattr(adapter, "WhisperModel", constructor)
     monkeypatch.setattr(
-        "app.faster_whisper_asr.ctranslate2.get_cuda_device_count", lambda: 1
+        "app.adapters.faster_whisper_asr.ctranslate2.get_cuda_device_count", lambda: 1
     )
     monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [0] * 16000)
 
@@ -160,7 +164,7 @@ def test_missing_gpu_and_wrong_model_are_rejected(
     model_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "app.faster_whisper_asr.ctranslate2.get_cuda_device_count", lambda: 0
+        "app.adapters.faster_whisper_asr.ctranslate2.get_cuda_device_count", lambda: 0
     )
     with pytest.raises(RuntimeError, match="CPU fallback is disabled"):
         adapter.FasterWhisperTranscriber(model_dir, "cuda")

@@ -13,11 +13,11 @@ from typing import Any, Final
 
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
-from app.asr_service import TranscriptionService
-from app.community1_diarizer import MODEL_MANIFEST
-from app.faster_whisper_asr import FasterWhisperTranscriber
-from app.model_integrity import verify_model
+from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
+from app.core.asr_service import TranscriptionService
+from app.adapters.community1_diarizer import MODEL_MANIFEST
+from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
+from app.infrastructure.model_integrity import verify_model
 
 ASR_MODEL_DIR = Path("/model")
 DIARIZATION_MODEL_DIR = Path("/diarization")

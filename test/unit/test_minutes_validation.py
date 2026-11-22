@@ -6,15 +6,15 @@ from datetime import date
 
 import pytest
 
-from app.asr_contract import Language, ModelProvenance, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance
-from app.minutes_contract import (
+from app.core.asr_contract import Language, ModelProvenance, TranscriptSegment
+from app.core.diarization_contract import Diarization, DiarizationProvenance
+from app.core.minutes_contract import (
     MinutesActionItem,
     MinutesDecision,
     MinutesDraft,
     MinutesTopic,
 )
-from app.minutes_validation import (
+from app.core.minutes_validation import (
     InvalidTranscriptEvidenceError,
     MinutesCompletenessError,
     MinutesEvidenceError,
@@ -25,7 +25,7 @@ from app.minutes_validation import (
     validate_minutes_completeness,
     validate_minutes_evidence,
 )
-from app.speaker_alignment import AttributedTranscript, SpeakerAttribution
+from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
 ASR_PROVENANCE = ModelProvenance(
     "fake", "1.0", "asr", "revision", "digest", "cpu", "int8", True, 5

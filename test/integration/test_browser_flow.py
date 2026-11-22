@@ -19,15 +19,15 @@ import uvicorn
 from playwright.sync_api import Browser, Page, Route, sync_playwright
 
 import app.main as main
-from app.asr_contract import Language, ModelProvenance, TranscriptSegment
-from app.diarization_contract import (
+from app.core.asr_contract import Language, ModelProvenance, TranscriptSegment
+from app.core.diarization_contract import (
     Diarization,
     DiarizationProvenance,
     SpeakerTurn,
 )
-from app.minutes_contract import MinutesDraft
-from app.minutes_extractor import MinutesExtractionResult
-from app.speaker_alignment import AttributedTranscript, SpeakerAttribution
+from app.core.minutes_contract import MinutesDraft
+from app.core.minutes_extractor import MinutesExtractionResult
+from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("MEETSCRIBE_BROWSER_TESTS") != "1",

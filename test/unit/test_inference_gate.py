@@ -2,7 +2,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from app.inference_gate import InferenceGate, InferenceGateUnavailableError
+from app.infrastructure.inference_gate import (
+    InferenceGate,
+    InferenceGateUnavailableError,
+)
 
 
 def test_gate_serializes_work_across_threads() -> None:

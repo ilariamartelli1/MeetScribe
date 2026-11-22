@@ -4,9 +4,9 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from app.asr_contract import CUDA_DEVICE
-from app.community1_diarizer import Community1Diarizer
-from app.diarization_service import DiarizationService
+from app.core.asr_contract import CUDA_DEVICE
+from app.adapters.community1_diarizer import Community1Diarizer
+from app.core.diarization_service import DiarizationService
 
 MODEL_DIR = Path("/diarization")
 AUDIO_PATH = Path("/audio/two-voices.wav")

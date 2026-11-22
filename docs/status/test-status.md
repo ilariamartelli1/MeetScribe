@@ -34,7 +34,15 @@ means no matching result or duration is documented.
 | Integration - GPU - Speaker Alignment | [`test/integration/test_speaker_alignment.py`](../../test/integration/test_speaker_alignment.py)::`test_offline_job_attributes_alternating_synthetic_voices`;<br>`test_offline_job_produces_segments_and_turns_in_english_and_italian`;<br>`test_offline_job_transcribes_all_two_voice_speech` | Attribution and output-shape checks **PASS**; exact-text check **FAIL** (`Friday` → `Fragi`, `Elena` → `Elina`) | 31.90 s shared English/Italian fixture setup; not full config wall time |
 | Integration - Synthetic Two-Voice Fixture | Configured target [`test/integration/test_diarization_adapter.py`](../../test/integration/test_diarization_adapter.py) uses `-k versioned`, which matches no test there. The related in-code fixture check is [`test/unit/test_asr_helpers.py`](../../test/unit/test_asr_helpers.py)::`test_integration_paths_use_versioned_fixtures`, but this config does not target it. | No tests selected by the current target/filter; no result reported | Not reported |
 | Integration - GPU - ASR Five-minute MP3 (long) | [`test/integration/test_asr_long_recording.py`](../../test/integration/test_asr_long_recording.py)::`test_five_minute_mp3_has_bounded_timestamps_and_final_speech` | **PASS** (2026-11-21 all-opt-in run) | 10.95 s |
-| Unit Tests | All pytest tests under [`test/unit/`](../../test/unit/) (directory target; no single test node) | Latest broader default suite: **271 passed, 31 skipped** ([Slice 3.7](../reports/sprint-3-slice-3.7.md)); not isolated to this configuration | 14.47 s for the broader default suite; unit-only runtime not reported |
+| Unit Tests | All pytest tests under [`test/unit/`](../../test/unit/) (directory target; no single test node) | Latest broader default suite: **277 passed, 31 skipped** (application folder grouping update below); not isolated to this configuration | 14.61 s for the broader default suite; unit-only runtime not reported |
+
+**Application folder grouping update:** The default suite passed **277 tests**
+and skipped **31 opt-in cases** in 14.61 seconds, with the existing
+Starlette/AnyIO deprecation warning. The added checks cover adapter imports,
+shared manifest paths and the container startup module entry point. Ruff,
+formatting and mypy passed. No opt-in real-model, Docker, browser or other
+integration runs were performed; the historical configuration results above
+were not rerun.
 
 **Slice 2.3a update:** After this snapshot, browser editing was removed and the
 targeted browser-flow and browser-asset checks passed: 12 tests total, including

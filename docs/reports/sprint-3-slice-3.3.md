@@ -9,7 +9,7 @@ not generate minutes or change browser behavior.
 
 ## Contracts
 
-`app/minutes_contract.py` defines immutable Pydantic models for topics,
+`app/core/minutes_contract.py` defines immutable Pydantic models for topics,
 decisions, action items, the model's `MinutesDraft` response, transcript
 segments and `MeetingExportV1`. Unknown fields are rejected, every required key
 must be present, and nullable owner/deadline fields must be explicitly present
@@ -46,7 +46,7 @@ summary regeneration, not audio re-transcription. See the
 
 ## Validation boundaries
 
-`app/minutes_validation.py` separates response-shape parsing,
+`app/core/minutes_validation.py` separates response-shape parsing,
 `validate_minutes_completeness`, citation-ID checks and evidence checks. The
 checks reject unknown segment IDs; require each listed topic, decision and
 action item to cite source segments; keep a named owner separate from an
@@ -83,8 +83,8 @@ See [test status](../status/test-status.md) for their original results.
 
 ## Changed files
 
-- `app/minutes_contract.py` — typed response and export-v1 models.
-- `app/minutes_validation.py` — parsing, completeness/evidence checks and
+- `app/core/minutes_contract.py` — typed response and export-v1 models.
+- `app/core/minutes_validation.py` — parsing, completeness/evidence checks and
   transcript-to-export assembly.
 - `test/unit/test_minutes_contract.py` and
   `test/unit/test_minutes_validation.py` —

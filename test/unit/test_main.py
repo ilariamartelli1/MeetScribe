@@ -10,10 +10,10 @@ from fastapi.testclient import TestClient
 
 import app.main as main
 from app.main import app
-from app.minutes_contract import MinutesDraft
-from app.minutes_extractor import MinutesExtractionResult
-from app.speaker_alignment import AttributedTranscript
-from app.transcription_jobs import TranscriptionCoordinator
+from app.core.minutes_contract import MinutesDraft
+from app.core.minutes_extractor import MinutesExtractionResult
+from app.core.speaker_alignment import AttributedTranscript
+from app.core.transcription_jobs import TranscriptionCoordinator
 from test.unit.test_transcription_jobs import FakeJob, FakeSpeakerJob, wait_for
 
 

@@ -50,6 +50,14 @@ network boundaries, data handling and deployment limitations.
 The [documentation index](docs/README.md) lists reports, architecture notes,
 investigations and status documents.
 
+Provider-specific faster-whisper, Community-1 and Ollama integrations live in
+`app/adapters/`; meeting-processing contracts, services and coordinators live
+in `app/core/`; and configuration, uploads, inference gating and model
+integrity live in `app/infrastructure/`. The API and container startup entry
+points remain at `app.main` and `app.container_start`. Some core modules still
+depend directly on provider or infrastructure details; the folder layout alone
+does not make those dependencies independent.
+
 The browser integration tests use Playwright with fake inference. Install Chromium
 with `uv run --locked python -m playwright install chromium` if no supported browser
 is available, then run:
@@ -296,7 +304,7 @@ See [the window comparison](docs/investigations/asr-window-comparison.md) for co
 
 ## Timestamped transcription contract
 
-`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD, an explicit 30-second chunk length and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/investigations/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+`TranscriptionService` in `app/core/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/adapters/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD, an explicit 30-second chunk length and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/investigations/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
 
 The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
 
@@ -368,7 +376,7 @@ attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR`
 
 ## Speaker-turn adapter
 
-`Diarizer` in `app/diarization_contract.py` is a replaceable interface.
+`Diarizer` in `app/core/diarization_contract.py` is a replaceable interface.
 `Community1Diarizer` loads the verified local model and explicitly selects
 `cuda` or `cpu`; CUDA failures never silently fall back to CPU. Its caller
 must enable `HF_HUB_OFFLINE=1`, `HF_HUB_DISABLE_TELEMETRY=1` and
@@ -407,7 +415,7 @@ alternating intervals, but does not establish accuracy on real meetings.
 
 ## Temporary transcription jobs
 
-`TranscriptionCoordinator` in `app/transcription_jobs.py` starts one job at a time in a spawned child process. The application uses `SpeakerAttributedJob`: it transcribes first, unloads the ASR model, then runs and unloads diarization on the same explicitly selected device. A missing model, device, or failed stage fails the job; no partial transcript or silent fallback is returned. Both provisioned model directories must be readable by the app. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
+`TranscriptionCoordinator` in `app/core/transcription_jobs.py` starts one job at a time in a spawned child process. The application uses `SpeakerAttributedJob`: it transcribes first, unloads the ASR model, then runs and unloads diarization on the same explicitly selected device. A missing model, device, or failed stage fails the job; no partial transcript or silent fallback is returned. Both provisioned model directories must be readable by the app. Call `submit()` to obtain a job ID and `get()` to check its running, succeeded, or failed state. The coordinator retains up to 16 finished results or errors for one hour after completion, then removes its references even if nobody polls. Callers must also release their own references. It rejects a new job while another is running.
 
 The result retains the original `segments` and ASR `provenance`, and adds `diarization` (including ordinary overlapping turns, exclusive turns, and model provenance) and a parallel `attributions` array. Each attribution has the original segment's `start_ms`, `end_ms` and a `speaker` label or `null` for unknown. Labels such as `Voice 1` are assigned by first diarized appearance within that recording; simultaneous first appearances are ordered by model speaker ID. A segment receives a label only when its time overlaps exactly one distinct speaker in ordinary diarization; no overlap or multiple speakers produces `null`. Even one overlap may be wrong if timestamps or diarization are inaccurate. The approach does not split segments, assign individual words, identify people, or guarantee speaker accuracy. Alignment fails if independently decoded durations differ by more than 20 ms.
 

@@ -4,9 +4,13 @@ from dataclasses import replace
 
 import pytest
 
-from app.asr_contract import ModelProvenance, Transcript, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance, SpeakerTurn
-from app.speaker_alignment import SpeakerAttribution, align_speakers
+from app.core.asr_contract import ModelProvenance, Transcript, TranscriptSegment
+from app.core.diarization_contract import (
+    Diarization,
+    DiarizationProvenance,
+    SpeakerTurn,
+)
+from app.core.speaker_alignment import SpeakerAttribution, align_speakers
 
 ASR = ModelProvenance("fake", "1", "asr", "revision", "digest", "cpu", "int8", True, 5)
 DIARIZATION = DiarizationProvenance("fake", "1", "diarizer", "revision", "cpu")

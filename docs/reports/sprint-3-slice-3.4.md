@@ -51,7 +51,7 @@ Only a response ending with `done_reason == "stop"` is considered a normal
 generation completion. In the pinned Ollama version, `"stop"` is the
 successful completion reason used by the local generation path, while
 `"length"` indicates that a generation limit was reached. The code names
-`"stop"` as `OLLAMA_DONE_REASON_STOP` in `app/ollama_client.py`. Ollama's
+`"stop"` as `OLLAMA_DONE_REASON_STOP` in `app/adapters/ollama_client.py`. Ollama's
 public API describes `done_reason` as a string, not an enumerated contract;
 its meaning should be rechecked when upgrading Ollama.
 
@@ -80,7 +80,7 @@ in slice 3.3.
 
 ## Files and next step
 
-The implementation is in `app/minutes_extractor.py` and
+The implementation is in `app/core/minutes_extractor.py` and
 `app/model_manifests/summary_model.toml`, with fake-client coverage in
 `test/unit/test_minutes_extractor.py`. `README.md`, `plan.md` and
 `docs/status/test-status.md` record the current status. Slice 3.5 connects minutes

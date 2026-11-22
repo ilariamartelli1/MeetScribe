@@ -5,7 +5,7 @@ import ctranslate2  # type: ignore[import-untyped]
 from faster_whisper import WhisperModel  # type: ignore[import-untyped]
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app.asr_contract import (
+from app.core.asr_contract import (
     CPU_DEVICE,
     CUDA_DEVICE,
     Device,
@@ -14,7 +14,7 @@ from app.asr_contract import (
     Transcript,
     TranscriptSegment,
 )
-from app.model_integrity import MANIFEST_DIR, load_manifest, verify_model
+from app.infrastructure.model_integrity import MANIFEST_DIR, load_manifest, verify_model
 
 MODEL_MANIFEST = load_manifest(MANIFEST_DIR / "faster_whisper.toml")
 SAMPLE_RATE = 16000

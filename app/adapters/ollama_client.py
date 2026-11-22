@@ -8,8 +8,8 @@ from typing import Final
 
 import httpx
 
-from app.inference_gate import InferenceGate
-from app.model_integrity import MANIFEST_DIR
+from app.infrastructure.inference_gate import InferenceGate
+from app.infrastructure.model_integrity import MANIFEST_DIR
 
 OLLAMA_BASE_URL = "http://ollama:11434"
 OLLAMA_MANIFEST_PATH = MANIFEST_DIR / "summary_model.toml"

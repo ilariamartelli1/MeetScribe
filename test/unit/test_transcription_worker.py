@@ -5,9 +5,13 @@ from unittest.mock import patch
 
 import pytest
 
-from app.asr_contract import ModelProvenance, Transcript, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance, SpeakerTurn
-from app.transcription_worker import FasterWhisperJob, SpeakerAttributedJob
+from app.core.asr_contract import ModelProvenance, Transcript, TranscriptSegment
+from app.core.diarization_contract import (
+    Diarization,
+    DiarizationProvenance,
+    SpeakerTurn,
+)
+from app.core.transcription_worker import FasterWhisperJob, SpeakerAttributedJob
 
 
 @pytest.mark.parametrize("fails", [False, True])
@@ -20,7 +24,9 @@ def test_model_is_unloaded_after_transcription(fails: bool) -> None:
             "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5
         ),
     )
-    with patch("app.faster_whisper_asr.FasterWhisperTranscriber") as constructor:
+    with patch(
+        "app.adapters.faster_whisper_asr.FasterWhisperTranscriber"
+    ) as constructor:
         transcriber = constructor.return_value
         transcriber.transcribe.return_value = transcript
         if fails:
@@ -54,8 +60,12 @@ def test_speaker_job_unloads_asr_before_diarization_and_releases_diarizer(
         DiarizationProvenance("fake", "1", "model", "revision", "cpu"),
     )
     with (
-        patch("app.faster_whisper_asr.FasterWhisperTranscriber") as asr_constructor,
-        patch("app.community1_diarizer.Community1Diarizer") as diarizer_constructor,
+        patch(
+            "app.adapters.faster_whisper_asr.FasterWhisperTranscriber"
+        ) as asr_constructor,
+        patch(
+            "app.adapters.community1_diarizer.Community1Diarizer"
+        ) as diarizer_constructor,
     ):
         transcriber = asr_constructor.return_value
         transcriber.transcribe.return_value = transcript
@@ -84,8 +94,12 @@ def test_speaker_job_unloads_asr_before_diarization_and_releases_diarizer(
 
 def test_speaker_job_does_not_load_diarizer_when_asr_fails() -> None:
     with (
-        patch("app.faster_whisper_asr.FasterWhisperTranscriber") as asr_constructor,
-        patch("app.community1_diarizer.Community1Diarizer") as diarizer_constructor,
+        patch(
+            "app.adapters.faster_whisper_asr.FasterWhisperTranscriber"
+        ) as asr_constructor,
+        patch(
+            "app.adapters.community1_diarizer.Community1Diarizer"
+        ) as diarizer_constructor,
     ):
         transcriber = asr_constructor.return_value
         transcriber.transcribe.side_effect = RuntimeError("asr failed")

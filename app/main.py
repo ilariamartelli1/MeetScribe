@@ -13,11 +13,11 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
-from app.config import Settings
-from app.inference_gate import InferenceGate
-from app.ollama_client import OllamaClient
-from app.meeting_minutes import (
+from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
+from app.infrastructure.config import Settings
+from app.infrastructure.inference_gate import InferenceGate
+from app.adapters.ollama_client import OllamaClient
+from app.core.meeting_minutes import (
     MeetingMinutesCoordinator,
     MinutesCoordinatorClosedError,
     MinutesEditValidationError,
@@ -32,9 +32,9 @@ from app.meeting_minutes import (
     render_minutes_text,
     render_transcript_text,
 )
-from app.minutes_contract import MinutesDraft
-from app.minutes_extractor import OllamaMinutesExtractor
-from app.transcription_jobs import (
+from app.core.minutes_contract import MinutesDraft
+from app.core.minutes_extractor import OllamaMinutesExtractor
+from app.core.transcription_jobs import (
     CoordinatorClosedError,
     JobError,
     JobBusyError,
@@ -44,9 +44,9 @@ from app.transcription_jobs import (
     ResultCapacityError,
     TranscriptionCoordinator,
 )
-from app.speaker_alignment import AttributedTranscript
-from app.transcription_worker import SpeakerAttributedJob
-from app.uploads import (
+from app.core.speaker_alignment import AttributedTranscript
+from app.core.transcription_worker import SpeakerAttributedJob
+from app.infrastructure.uploads import (
     MAX_REQUEST_BYTES,
     UploadError,
     UploadParser,

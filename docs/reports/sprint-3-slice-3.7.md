@@ -57,7 +57,7 @@ or longer-term VM capacity can be made from this run.
 
 ## Main implementation files
 
-- `app/meeting_minutes.py` — extraction metrics included in minutes snapshots.
+- `app/core/meeting_minutes.py` — extraction metrics included in minutes snapshots.
 - `app/main.py` — API serialization of those metrics.
 - `compose.minutes-quality.yaml` — read-only audio fixture mounts.
 - `test/src/minutes_quality_smoke.py` — API-driven transcription, minutes and

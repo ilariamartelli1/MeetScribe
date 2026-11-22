@@ -2,8 +2,13 @@
 
 from dataclasses import dataclass
 
-from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
-from app.diarization_contract import Diarization, SpeakerTurn
+from app.core.asr_contract import (
+    Language,
+    ModelProvenance,
+    Transcript,
+    TranscriptSegment,
+)
+from app.core.diarization_contract import Diarization, SpeakerTurn
 
 MAX_DURATION_DIFFERENCE_MS = 20
 

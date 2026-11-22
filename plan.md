@@ -13,6 +13,15 @@ The current local app retains the intermediate release's **5 minutes / 100 MB** 
 - Keep slice IDs stable and record completed checkpoints in this plan as they are verified. Fakes and small fixtures test contracts in CI; any slice introducing a model also requires an explicit local real-model smoke check before calling its checkpoint complete. If hardware/setup blocks that check, report the checkpoint blocked rather than claiming success.
 - A new code path needs a relevant test in the same slice. Prefer unit/API tests first, add browser or Docker tests where the behavior crosses those boundaries, and use only authorized, non-sensitive audio for real-model checks. Quality thresholds for WER/DER and correction time are set **after** measuring a baseline, not guessed ahead of time.
 
+## Code organization
+
+- **Application folder grouping.** Organize provider
+  integrations under `app/adapters/`, meeting-processing contracts and
+  coordination under `app/core/`, and configuration and runtime support under
+  `app/infrastructure/`. Keep the API and container startup entry points in
+  place. This move preserves existing behavior and does not by itself remove
+  existing provider or infrastructure dependencies from the core.
+
 ## Architecture choices and why
 
 - **Keep the system small.** Python/FastAPI serves a versioned JSON API (`/api/v1`) and plain HTML/CSS/JavaScript. Use one API process with a bounded coordinator and a stoppable child process for each inference job; this keeps the browser responsive and permits real cancellation without leaving a native model call running. Do not start a new GPU job until the old child and any local model-server request have stopped. No broker, distributed worker fleet, vector database, agent framework, or React dependency for the local MVP. A later React client can consume the same API.

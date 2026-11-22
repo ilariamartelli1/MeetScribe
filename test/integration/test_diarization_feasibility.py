@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from app.asr_contract import CUDA_DEVICE
-from app.community1_diarizer import MODEL_MANIFEST
-from app.model_integrity import verify_model
+from app.core.asr_contract import CUDA_DEVICE
+from app.adapters.community1_diarizer import MODEL_MANIFEST
+from app.infrastructure.model_integrity import verify_model
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTAINER_MEMORY_LIMIT = "6g"

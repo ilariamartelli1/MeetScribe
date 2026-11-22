@@ -6,8 +6,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.asr_contract import ModelProvenance, Transcript, TranscriptSegment
-from app.asr_service import InvalidTranscriptError, NoSpeechError, TranscriptionService
+from app.core.asr_contract import ModelProvenance, Transcript, TranscriptSegment
+from app.core.asr_service import (
+    InvalidTranscriptError,
+    NoSpeechError,
+    TranscriptionService,
+)
 
 PROVENANCE = ModelProvenance(
     "fake", "1.0", "model", "revision", "digest", "cpu", "int8", True, 5

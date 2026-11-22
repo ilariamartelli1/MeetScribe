@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from app.diarization_contract import Diarization, Diarizer, SpeakerTurn
+from app.core.diarization_contract import Diarization, Diarizer, SpeakerTurn
 
 
 class InvalidDiarizationError(ValueError):

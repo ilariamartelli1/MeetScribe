@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from app.asr_contract import (
+from app.core.asr_contract import (
     CPU_DEVICE,
     CUDA_DEVICE,
     ModelProvenance,

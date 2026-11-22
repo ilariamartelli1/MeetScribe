@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from app.model_integrity import MANIFEST_DIR, ModelManifest, load_manifest, verify_model
+from app.infrastructure.model_integrity import (
+    MANIFEST_DIR,
+    ModelManifest,
+    load_manifest,
+    verify_model,
+)
 
 
 @pytest.mark.parametrize("model_name", ["First model", "Another model"])

@@ -10,14 +10,14 @@ from typing import Literal
 
 from pydantic import ValidationError
 
-from app.asr_contract import Transcript
-from app.minutes_contract import MeetingExportV1, MinutesDraft, ReviewStatus
-from app.minutes_extractor import (
+from app.core.asr_contract import Transcript
+from app.core.minutes_contract import MeetingExportV1, MinutesDraft, ReviewStatus
+from app.core.minutes_extractor import (
     MinutesExtractionError,
     MinutesExtractionResult,
     MinutesExtractor,
 )
-from app.minutes_validation import (
+from app.core.minutes_validation import (
     InvalidTranscriptEvidenceError,
     MinutesCompletenessError,
     MinutesEvidenceError,
@@ -26,7 +26,7 @@ from app.minutes_validation import (
     validate_minutes_completeness,
     validate_minutes_dates,
 )
-from app.speaker_alignment import AttributedTranscript
+from app.core.speaker_alignment import AttributedTranscript
 
 MinutesJobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
 

@@ -1,6 +1,8 @@
 """Verify device preflight, startup errors, and container server launch."""
 
+import os
 import subprocess
+import sys
 from unittest.mock import Mock
 
 import pytest
@@ -79,3 +81,16 @@ def test_main_exits_when_preflight_fails(
 
     assert exc_info.value.code == 1
     assert "MEETSCRIBE_DEVICE" in capsys.readouterr().err
+
+
+def test_container_start_module_entrypoint_remains_available() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "app.container_start"],
+        env={**os.environ, "MEETSCRIBE_DEVICE": "invalid"},
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "MEETSCRIBE_DEVICE" in result.stderr

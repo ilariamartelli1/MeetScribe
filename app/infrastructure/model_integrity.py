@@ -6,7 +6,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-MANIFEST_DIR = Path(__file__).resolve().parent / "model_manifests"
+MANIFEST_DIR = Path(__file__).resolve().parent.parent / "model_manifests"
 
 
 @dataclass(frozen=True)

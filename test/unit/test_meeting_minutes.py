@@ -5,9 +5,9 @@ from datetime import date
 
 import pytest
 
-from app.asr_contract import ModelProvenance, Transcript, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance
-from app.meeting_minutes import (
+from app.core.asr_contract import ModelProvenance, Transcript, TranscriptSegment
+from app.core.diarization_contract import Diarization, DiarizationProvenance
+from app.core.meeting_minutes import (
     MeetingMinutesCoordinator,
     MinutesEditValidationError,
     MinutesJobCapacityError,
@@ -20,15 +20,15 @@ from app.meeting_minutes import (
     render_minutes_text,
     render_transcript_text,
 )
-from app.minutes_contract import (
+from app.core.minutes_contract import (
     MinutesActionItem,
     MinutesDraft,
     MinutesTopic,
 )
-from app.minutes_extractor import (
+from app.core.minutes_extractor import (
     MinutesExtractionResult,
 )
-from app.speaker_alignment import AttributedTranscript, SpeakerAttribution
+from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
 PROVENANCE = ModelProvenance(
     "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5

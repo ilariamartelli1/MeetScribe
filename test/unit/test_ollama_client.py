@@ -5,8 +5,11 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from app.inference_gate import InferenceGate, InferenceGateUnavailableError
-from app.ollama_client import (
+from app.infrastructure.inference_gate import (
+    InferenceGate,
+    InferenceGateUnavailableError,
+)
+from app.adapters.ollama_client import (
     MODEL_DIGEST,
     MODEL_NAME,
     OllamaClient,

@@ -12,9 +12,9 @@ import av
 import pytest
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app import community1_diarizer as adapter
-from app.diarization_contract import SpeakerTurn
-from app.diarization_service import DiarizationService
+from app.adapters import community1_diarizer as adapter
+from app.core.diarization_contract import SpeakerTurn
+from app.core.diarization_service import DiarizationService
 
 ROOT = Path(__file__).resolve().parents[2]
 SMOKE_AUDIO = ROOT / "test/data/smoke"

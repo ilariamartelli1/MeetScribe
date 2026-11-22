@@ -12,20 +12,20 @@ from typing import Iterator
 
 import httpx
 
-from app.asr_contract import CUDA_DEVICE, Transcript
-from app.asr_service import TranscriptionService
-from app.community1_diarizer import Community1Diarizer
-from app.diarization_service import DiarizationService
-from app.faster_whisper_asr import FasterWhisperTranscriber
-from app.inference_gate import InferenceGate
-from app.ollama_client import (
+from app.core.asr_contract import CUDA_DEVICE, Transcript
+from app.core.asr_service import TranscriptionService
+from app.adapters.community1_diarizer import Community1Diarizer
+from app.core.diarization_service import DiarizationService
+from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
+from app.infrastructure.inference_gate import InferenceGate
+from app.adapters.ollama_client import (
     MODEL_NAME,
     OLLAMA_BASE_URL,
     OLLAMA_DONE_REASON_STOP,
     OllamaClient,
     OllamaGenerationResult,
 )
-from app.speaker_alignment import align_speakers
+from app.core.speaker_alignment import align_speakers
 
 ASR_MODEL_DIR = Path("/app/models/faster-whisper-large-v3-turbo")
 DIARIZATION_MODEL_DIR = Path("/app/models/pyannote-community-1")

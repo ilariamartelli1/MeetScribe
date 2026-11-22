@@ -63,7 +63,7 @@ The known two-voice ASR exact-text mismatch (`Friday` → `Fragi`, `Elena` →
 
 ## Main implementation files
 
-- `app/meeting_minutes.py` — current/source transcript revisions, explicit
+- `app/core/meeting_minutes.py` — current/source transcript revisions, explicit
   regeneration, preservation on failure/cancellation and stale exports.
 - `app/main.py` — version-checked regeneration endpoint.
 - `app/web/index.html` and `app/web/app.js` — regeneration confirmation,

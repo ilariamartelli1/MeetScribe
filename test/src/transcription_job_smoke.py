@@ -4,8 +4,8 @@ import json
 import time
 from pathlib import Path
 
-from app.transcription_jobs import TranscriptionCoordinator
-from app.transcription_worker import FasterWhisperJob
+from app.core.transcription_jobs import TranscriptionCoordinator
+from app.core.transcription_worker import FasterWhisperJob
 
 
 def main() -> None:

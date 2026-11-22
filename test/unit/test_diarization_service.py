@@ -5,12 +5,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.diarization_contract import (
+from app.core.diarization_contract import (
     Diarization,
     DiarizationProvenance,
     SpeakerTurn,
 )
-from app.diarization_service import DiarizationService, InvalidDiarizationError
+from app.core.diarization_service import DiarizationService, InvalidDiarizationError
 
 PROVENANCE = DiarizationProvenance("fake", "1", "model", "revision", "cpu")
 

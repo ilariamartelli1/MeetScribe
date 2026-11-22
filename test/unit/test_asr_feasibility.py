@@ -16,7 +16,7 @@ import pytest
 import av
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app.faster_whisper_asr import MODEL_MANIFEST
+from app.adapters.faster_whisper_asr import MODEL_MANIFEST
 from test.src import asr_feasibility as feasibility
 
 

@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from app.config import Settings
+from app.infrastructure.config import Settings
 
 
 def test_default_settings() -> None:

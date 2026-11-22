@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.asr_contract import Language, Transcriber, Transcript
+from app.core.asr_contract import Language, Transcriber, Transcript
 
 
 class NoSpeechError(ValueError):

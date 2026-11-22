@@ -14,8 +14,8 @@ import ctranslate2  # type: ignore[import-untyped]
 from faster_whisper import WhisperModel  # type: ignore[import-untyped]
 from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
-from app.faster_whisper_asr import MODEL_MANIFEST
-from app.model_integrity import verify_model
+from app.adapters.faster_whisper_asr import MODEL_MANIFEST
+from app.infrastructure.model_integrity import verify_model
 
 COMPUTE_TYPE = "int8_float16"
 SAMPLE_INTERVAL_SECONDS = 0.2

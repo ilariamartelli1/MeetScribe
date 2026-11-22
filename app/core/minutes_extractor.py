@@ -6,18 +6,18 @@ import tomllib
 from dataclasses import dataclass
 from typing import Protocol
 
-from app.minutes_contract import MinutesDraft
-from app.minutes_validation import (
+from app.core.minutes_contract import MinutesDraft
+from app.core.minutes_validation import (
     parse_minutes_response,
     transcript_segments_v1,
     validate_minutes_evidence,
 )
-from app.ollama_client import (
+from app.adapters.ollama_client import (
     OLLAMA_DONE_REASON_STOP,
     OLLAMA_MANIFEST_PATH,
     OllamaGenerationResult,
 )
-from app.speaker_alignment import AttributedTranscript
+from app.core.speaker_alignment import AttributedTranscript
 
 
 class MinutesExtractionError(RuntimeError):

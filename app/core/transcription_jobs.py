@@ -11,9 +11,9 @@ from multiprocessing.process import BaseProcess
 from pathlib import Path
 from typing import Literal
 
-from app.asr_contract import Language, Transcript
-from app.inference_gate import InferenceGate
-from app.speaker_alignment import AttributedTranscript
+from app.core.asr_contract import Language, Transcript
+from app.infrastructure.inference_gate import InferenceGate
+from app.core.speaker_alignment import AttributedTranscript
 
 JobState = Literal["running", "cancelling", "cancelled", "succeeded", "failed"]
 JobResult = Transcript | AttributedTranscript

@@ -6,7 +6,7 @@ from datetime import date
 
 from pydantic import ValidationError
 
-from app.minutes_contract import (
+from app.core.minutes_contract import (
     MeetingExportV1,
     MinutesActionItem,
     MinutesDecision,
@@ -15,7 +15,7 @@ from app.minutes_contract import (
     ReviewStatus,
     TranscriptSegmentV1,
 )
-from app.speaker_alignment import AttributedTranscript
+from app.core.speaker_alignment import AttributedTranscript
 
 
 class MinutesResponseShapeError(ValueError):

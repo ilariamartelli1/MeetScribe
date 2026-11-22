@@ -63,10 +63,10 @@ establish transcription or minutes accuracy on real meetings.
 
 ## Main implementation files
 
-- `app/meeting_minutes.py` — transient task lifecycle, editing, review and
+- `app/core/meeting_minutes.py` — transient task lifecycle, editing, review and
   versioned export assembly.
 - `app/main.py` — sanitized job-status responses and minutes/transcript routes.
-- `app/minutes_validation.py` — generated-output checks and manual-edit
+- `app/core/minutes_validation.py` — generated-output checks and manual-edit
   validation.
 - `app/web/index.html`, `app/web/app.js` and `app/web/styles.css` — summary-only
   editor, review and exports.

@@ -12,11 +12,23 @@ from unittest.mock import patch
 
 import pytest
 
-from app.asr_contract import Language, ModelProvenance, Transcript, TranscriptSegment
-from app.diarization_contract import Diarization, DiarizationProvenance, SpeakerTurn
-from app.inference_gate import InferenceGate, InferenceGateUnavailableError
-from app.speaker_alignment import AttributedTranscript, align_speakers
-from app.transcription_jobs import (
+from app.core.asr_contract import (
+    Language,
+    ModelProvenance,
+    Transcript,
+    TranscriptSegment,
+)
+from app.core.diarization_contract import (
+    Diarization,
+    DiarizationProvenance,
+    SpeakerTurn,
+)
+from app.infrastructure.inference_gate import (
+    InferenceGate,
+    InferenceGateUnavailableError,
+)
+from app.core.speaker_alignment import AttributedTranscript, align_speakers
+from app.core.transcription_jobs import (
     CoordinatorClosedError,
     JobBusyError,
     JobFinishedError,
@@ -413,7 +425,7 @@ def test_failed_monitor_start_stops_worker_and_preserves_saved_result(
         wait_for(lambda: coordinator.get(first).state == "succeeded")
         with (
             patch(
-                "app.transcription_jobs.threading.Thread.start",
+                "app.core.transcription_jobs.threading.Thread.start",
                 side_effect=RuntimeError("Cannot start monitor"),
             ),
             pytest.raises(RuntimeError, match="Cannot start monitor"),
@@ -431,7 +443,7 @@ def test_shutdown_can_retry_if_worker_cleanup_initially_fails(tmp_path: Path) ->
     try:
         with (
             patch(
-                "app.transcription_jobs.threading.Thread.start",
+                "app.core.transcription_jobs.threading.Thread.start",
                 side_effect=RuntimeError("Cannot start monitor"),
             ),
             patch(

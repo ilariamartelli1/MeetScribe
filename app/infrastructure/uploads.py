@@ -14,7 +14,7 @@ from python_multipart import MultipartParser
 from python_multipart.exceptions import MultipartParseError
 from python_multipart.multipart import parse_options_header
 
-from app.asr_contract import Language
+from app.core.asr_contract import Language
 
 MAX_AUDIO_BYTES = 100_000_000
 MAX_REQUEST_BYTES = MAX_AUDIO_BYTES + 64 * 1024

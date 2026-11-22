@@ -14,8 +14,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.transcription_jobs import TranscriptionCoordinator
-from app.uploads import (
+from app.core.transcription_jobs import TranscriptionCoordinator
+from app.infrastructure.uploads import (
     MAX_AUDIO_BYTES,
     MAX_REQUEST_BYTES,
     UploadError,
@@ -301,7 +301,7 @@ def test_busy_job_rejects_another_upload_and_removes_only_new_audio(
 def test_decoder_timeout_rejects_and_cleans_audio(
     client: TestClient, tmp_path: Path
 ) -> None:
-    with patch("app.uploads.DECODE_TIMEOUT_SECONDS", 0.001):
+    with patch("app.infrastructure.uploads.DECODE_TIMEOUT_SECONDS", 0.001):
         response = client.post(
             "/api/v1/jobs", headers=HEADERS, files={"file": ("speech.wav", wav_bytes())}
         )

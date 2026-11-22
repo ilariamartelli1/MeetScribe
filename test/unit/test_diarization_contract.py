@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from app.diarization_contract import Diarization, DiarizationProvenance
+from app.core.diarization_contract import Diarization, DiarizationProvenance
 
 
 def test_result_is_immutable() -> None:
