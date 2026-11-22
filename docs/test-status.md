@@ -4,6 +4,38 @@ Snapshot: 2026-11-21, based on repository commit `e9fbd6b`. This document
 records observed results, not a live dashboard. Results apply to the stated
 environment and test inputs; reruns may differ.
 
+## CLion test configurations
+
+Inventory checked 2026-11-22. Names are CLion labels; `test/setup` maps each
+Python test configuration to its current in-code pytest node name(s) and source
+file. The two app/debug launchers are omitted because they do not run tests.
+Results and runtimes are historical observations, not fresh runs of every
+configuration. For multi-case configurations, runtimes are reported test or
+shared-fixture durations, not necessarily total CLion wall time. `Not reported`
+means no matching result or duration is documented.
+
+| Name | Test/setup | Reported result | Reported runtime |
+|---|---|---|---:|
+| Integration - GPU Handoff | [`test/integration/test_gpu_handoff.py`](../test/integration/test_gpu_handoff.py)::`test_real_gpu_handoff_serializes_and_releases_all_models` | **PASS** ([Slice 3.2](sprint-3-slice-3.2.md)) | 86.73 s ([Slice 3.2](sprint-3-slice-3.2.md)) |
+| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` | **FAIL** before model generation: estimated 11,322 tokens exceeded the 4,096-token context; no partial draft ([Slice 3.7](sprint-3-slice-3.7.md)) | 322.69 s ([Slice 3.7](sprint-3-slice-3.7.md)) |
+| Integration - Ollama Model | [`test/integration/test_ollama_model.py`](../test/integration/test_ollama_model.py)::`test_pinned_ollama_model_runs_offline_on_gpu` | **PASS** ([Slice 3.1](sprint-3-slice-3.1.md)) | 54.09 s ([Slice 3.1](sprint-3-slice-3.1.md)) |
+| Integration - Browser - Fake Inference | [`test/integration/test_browser_flow.py`](../test/integration/test_browser_flow.py):<br>`test_real_api_upload_summary_edit_review_and_separate_download`;<br>`test_regeneration_requires_confirmation_before_replacing_saved_edits`;<br>`test_stale_minutes_are_read_only_until_regenerated`;<br>`test_capacity_confirmation_precedes_replacement` (2 cases);<br>`test_cancel_running_transcription`;<br>`test_cancel_running_minutes_generation`;<br>`test_real_api_cancels_running_fake_transcription`;<br>`test_cancel_error_remains_visible_and_cancel_can_be_retried`;<br>`test_job_failure_is_visible_as_text` | 10 passed in Slice 3.7 ([Slice 3.7](sprint-3-slice-3.7.md)); 10 passed in Slice 3.6 | 17.95 s in Slice 3.6 ([Slice 3.6](sprint-3-slice-3.6.md)); Slice 3.7 runtime not reported |
+| Integration - CPU - ASR and Diarization Feasibility (long) | [`test/integration/test_diarization_feasibility.py`](../test/integration/test_diarization_feasibility.py)::`test_offline_asr_then_diarization[cpu-None]`; `test_offline_asr_then_diarization[cpu-mp3]` | **PASS**, both CPU cases (2026-11-21 all-opt-in run) | 60.07 s + 24.12 s per case; config wall time not reported |
+| Integration - CPU - Text Normalization (long) | [`test/integration/test_wetextprocessing.py`](../test/integration/test_wetextprocessing.py)::`test_english_and_italian_rule_data` | **PASS** (2026-11-21 all-opt-in run) | 39.79 s |
+| Integration - Docker - CPU App | [`test/integration/test_docker.py`](../test/integration/test_docker.py)::`test_cpu_container_is_healthy_and_bound_to_loopback` | **PASS** (2026-11-21 all-opt-in run) | 3.60 s |
+| Integration - Docker - Diarization Device and Arguments | [`test/integration/test_diarization_feasibility.py`](../test/integration/test_diarization_feasibility.py)::`test_cuda_diarization_fails_without_gpu`; `test_diarization_rejects_nonpositive_run_count` | **PASS**, both checks (2026-11-21 all-opt-in run) | 10.23 s + 10.19 s per case; config wall time not reported |
+| Integration - GPU - ASR Checkpoint WER (long) | [`test/integration/test_checkpoint_wer.py`](../test/integration/test_checkpoint_wer.py)::`test_checkpoint_wer_and_negations` | **PASS** (2026-11-21 all-opt-in run) | 60.07 s |
+| Integration - GPU - ASR Feasibility | [`test/integration/test_asr_gpu_feasibility.py`](../test/integration/test_asr_gpu_feasibility.py)::`test_offline_gpu_inference` | **PASS** (2026-11-21 all-opt-in run) | 8.04 s |
+| Integration - GPU - ASR Quiet Negations | [`test/integration/test_asr_adapter.py`](../test/integration/test_asr_adapter.py)::`test_quiet_negations_and_silence_on_real_model` | **PASS** (2026-11-21 all-opt-in run) | 5.18 s |
+| Integration - GPU - ASR Synthetic Accuracy | [`test/integration/test_asr_accuracy.py`](../test/integration/test_asr_accuracy.py)::`test_synthetic_speech_transcription` | **PASS** (2026-11-21 all-opt-in run) | 5.16 s |
+| Integration - GPU - ASR Worker | [`test/integration/test_transcription_jobs.py`](../test/integration/test_transcription_jobs.py)::`test_real_model_runs_in_an_owned_child` | **PASS** (2026-11-21 all-opt-in run) | 5.06 s |
+| Integration - GPU - ASR and Diarization Feasibility | [`test/integration/test_diarization_feasibility.py`](../test/integration/test_diarization_feasibility.py)::`test_offline_asr_then_diarization[cuda-None]` | **PASS** (2026-11-21 all-opt-in run) | 30.28 s |
+| Integration - GPU - Community-1 Adapter | [`test/integration/test_diarization_adapter.py`](../test/integration/test_diarization_adapter.py)::`test_real_community1_adapter_identifies_two_synthetic_voices` | **PASS** (2026-11-21 all-opt-in run) | 14.32 s |
+| Integration - GPU - Speaker Alignment | [`test/integration/test_speaker_alignment.py`](../test/integration/test_speaker_alignment.py)::`test_offline_job_attributes_alternating_synthetic_voices`;<br>`test_offline_job_produces_segments_and_turns_in_english_and_italian`;<br>`test_offline_job_transcribes_all_two_voice_speech` | Attribution and output-shape checks **PASS**; exact-text check **FAIL** (`Friday` → `Fragi`, `Elena` → `Elina`) | 31.90 s shared English/Italian fixture setup; not full config wall time |
+| Integration - Synthetic Two-Voice Fixture | Configured target [`test/integration/test_diarization_adapter.py`](../test/integration/test_diarization_adapter.py) uses `-k versioned`, which matches no test there. The related in-code fixture check is [`test/unit/test_asr_helpers.py`](../test/unit/test_asr_helpers.py)::`test_integration_paths_use_versioned_fixtures`, but this config does not target it. | No tests selected by the current target/filter; no result reported | Not reported |
+| Integration - GPU - ASR Five-minute MP3 (long) | [`test/integration/test_asr_long_recording.py`](../test/integration/test_asr_long_recording.py)::`test_five_minute_mp3_has_bounded_timestamps_and_final_speech` | **PASS** (2026-11-21 all-opt-in run) | 10.95 s |
+| Unit Tests | All pytest tests under [`test/unit/`](../test/unit/) (directory target; no single test node) | Latest broader default suite: **271 passed, 31 skipped** ([Slice 3.7](sprint-3-slice-3.7.md)); not isolated to this configuration | 14.47 s for the broader default suite; unit-only runtime not reported |
+
 **Slice 2.3a update:** After this snapshot, browser editing was removed and the
 targeted browser-flow and browser-asset checks passed: 12 tests total, including
 8 browser cases and 4 asset checks. The browser test previously named
