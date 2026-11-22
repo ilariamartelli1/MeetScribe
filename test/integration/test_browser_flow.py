@@ -40,17 +40,13 @@ MINUTES_INJECTION = '<img src=x onerror="window.injected=true"> minutes'
 
 
 class FakeBrowserJob:
-    def __init__(
-        self, model_dir: Path, diarization_model_dir: Path, device: str
-    ) -> None:
+    def __init__(self, transcriber_factory: object, diarizer_factory: object) -> None:
         pass
 
     def __call__(self, audio_path: Path, language: Language) -> AttributedTranscript:
         if language == "en":
             time.sleep(30)
-        provenance = ModelProvenance(
-            "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5
-        )
+        provenance = ModelProvenance("fake", "1", "model", "revision", "digest", "cpu")
         turns = (SpeakerTurn(100, 900, "speaker-1"),)
         return AttributedTranscript(
             language=language,
@@ -96,7 +92,9 @@ class FakeBrowserMinutesExtractor:
 @pytest.fixture
 def server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     monkeypatch.setattr(main, "SpeakerAttributedJob", FakeBrowserJob)
-    monkeypatch.setattr(main, "OllamaMinutesExtractor", FakeBrowserMinutesExtractor)
+    monkeypatch.setattr(
+        main, "create_ollama_minutes_extractor", FakeBrowserMinutesExtractor
+    )
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen()

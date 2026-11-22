@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
 import ctranslate2  # type: ignore[import-untyped]
@@ -24,6 +25,15 @@ CONDITION_ON_PREVIOUS_TEXT = False
 CHUNK_LENGTH_SECONDS = 30
 CUDA_COMPUTE_TYPE = "int8_float16"
 CPU_COMPUTE_TYPE = "int8_float32"
+
+
+@dataclass(frozen=True, kw_only=True)
+class FasterWhisperProvenance(ModelProvenance):
+    compute_type: str
+    vad_enabled: bool
+    beam_size: int
+    condition_on_previous_text: bool | None = None
+    chunk_length_seconds: int | None = None
 
 
 class FasterWhisperTranscriber:
@@ -56,7 +66,7 @@ class FasterWhisperTranscriber:
             raise RuntimeError(
                 "Model did not use the requested device and compute type."
             )
-        self._provenance = ModelProvenance(
+        self._provenance = FasterWhisperProvenance(
             adapter="faster-whisper",
             adapter_version=version("faster-whisper"),
             model_id=MODEL_MANIFEST.model_id,

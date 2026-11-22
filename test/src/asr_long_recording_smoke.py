@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 
 from app.core.asr_service import TranscriptionService
-from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
+from app.adapters.faster_whisper_asr import (
+    FasterWhisperProvenance,
+    FasterWhisperTranscriber,
+)
 
 
 def main() -> None:
@@ -13,6 +16,8 @@ def main() -> None:
         transcript = TranscriptionService(transcriber).transcribe(
             Path("/audio/sample.mp3")
         )
+        if not isinstance(transcript.provenance, FasterWhisperProvenance):
+            raise RuntimeError("The transcription lacks faster-whisper provenance.")
         print(
             json.dumps(
                 {

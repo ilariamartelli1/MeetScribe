@@ -3,8 +3,10 @@
 import json
 import time
 from dataclasses import asdict
+from functools import partial
 from pathlib import Path
 
+from app.adapters.model_factories import create_community1, create_faster_whisper
 from app.core.asr_contract import Language
 from app.core.speaker_alignment import AttributedTranscript
 from app.core.transcription_jobs import TranscriptionCoordinator
@@ -32,7 +34,10 @@ def run_job(
 
 
 def main() -> None:
-    job = SpeakerAttributedJob(Path("/asr"), Path("/diarization"), "cuda")
+    job = SpeakerAttributedJob(
+        partial(create_faster_whisper, Path("/asr"), "cuda"),
+        partial(create_community1, Path("/diarization"), "cuda"),
+    )
     coordinator = TranscriptionCoordinator(job)
     try:
         jobs: tuple[tuple[Language, str], ...] = (

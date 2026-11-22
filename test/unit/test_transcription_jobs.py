@@ -37,9 +37,7 @@ from app.core.transcription_jobs import (
     TranscriptionCoordinator,
 )
 
-PROVENANCE = ModelProvenance(
-    "fake", "1.0", "model", "revision", "digest", "cpu", "int8", True, 5
-)
+PROVENANCE = ModelProvenance("fake", "1.0", "model", "revision", "digest", "cpu")
 
 
 @dataclass(frozen=True)

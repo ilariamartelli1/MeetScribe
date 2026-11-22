@@ -30,9 +30,7 @@ from app.core.minutes_extractor import (
 )
 from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
-PROVENANCE = ModelProvenance(
-    "fake", "1", "model", "revision", "digest", "cpu", "int8", True, 5
-)
+PROVENANCE = ModelProvenance("fake", "1", "model", "revision", "digest", "cpu")
 DIARIZATION_PROVENANCE = DiarizationProvenance(
     "fake", "1", "diarizer", "revision", "cpu"
 )

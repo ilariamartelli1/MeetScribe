@@ -16,7 +16,10 @@ from app.core.asr_contract import CUDA_DEVICE, Transcript
 from app.core.asr_service import TranscriptionService
 from app.adapters.community1_diarizer import Community1Diarizer
 from app.core.diarization_service import DiarizationService
-from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
+from app.adapters.faster_whisper_asr import (
+    FasterWhisperProvenance,
+    FasterWhisperTranscriber,
+)
 from app.infrastructure.inference_gate import InferenceGate
 from app.adapters.ollama_client import (
     MODEL_NAME,
@@ -88,6 +91,8 @@ def run_asr_stage(
             raise RuntimeError("The GPU ASR stage returned no segments.")
         if transcript.provenance.device != CUDA_DEVICE:
             raise RuntimeError("ASR did not run on the requested GPU.")
+        if not isinstance(transcript.provenance, FasterWhisperProvenance):
+            raise RuntimeError("The transcription lacks faster-whisper provenance.")
         inference_memory = memory_snapshot()
         report = {
             "device": transcript.provenance.device,

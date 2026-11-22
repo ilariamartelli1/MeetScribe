@@ -27,9 +27,7 @@ from app.core.minutes_validation import (
 )
 from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
-ASR_PROVENANCE = ModelProvenance(
-    "fake", "1.0", "asr", "revision", "digest", "cpu", "int8", True, 5
-)
+ASR_PROVENANCE = ModelProvenance("fake", "1.0", "asr", "revision", "digest", "cpu")
 DIARIZATION_PROVENANCE = DiarizationProvenance(
     "fake", "1.0", "diarizer", "revision", "cpu"
 )

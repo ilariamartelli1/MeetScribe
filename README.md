@@ -54,9 +54,17 @@ Provider-specific faster-whisper, Community-1 and Ollama integrations live in
 `app/adapters/`; meeting-processing contracts, services and coordinators live
 in `app/core/`; and configuration, uploads, inference gating and model
 integrity live in `app/infrastructure/`. The API and container startup entry
-points remain at `app.main` and `app.container_start`. Some core modules still
-depend directly on provider or infrastructure details; the folder layout alone
-does not make those dependencies independent.
+points remain at `app.main` and `app.container_start`.
+
+The speech pipeline accepts lazy, spawn-compatible transcriber and diarizer
+factories. The bounded minutes extractor accepts a model-neutral generation
+client, a token budget and a provider-specific prompt-bound function. Application
+startup selects the current adapters; the core does not import provider
+implementations. A replacement must implement these contracts, preserve model
+release and cancellation, and provide compatible structured output and reliable
+token accounting. The existing pinned models, offline restrictions and budget
+remain in effect. The core coordinator still uses the shared runtime inference
+gate; provider independence does not mean independence from all infrastructure.
 
 The browser integration tests use Playwright with fake inference. Install Chromium
 with `uv run --locked python -m playwright install chromium` if no supported browser

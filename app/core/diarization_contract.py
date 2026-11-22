@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from app.core.asr_contract import Device
-
 
 @dataclass(frozen=True)
 class SpeakerTurn:
@@ -20,7 +18,7 @@ class DiarizationProvenance:
     adapter_version: str
     model_id: str
     model_revision: str
-    device: Device
+    device: str
 
 
 @dataclass(frozen=True)

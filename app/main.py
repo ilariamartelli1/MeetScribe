@@ -5,6 +5,7 @@ import os
 import tempfile
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import ParamSpec, TypeVar
 
@@ -17,6 +18,8 @@ from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
 from app.infrastructure.config import Settings
 from app.infrastructure.inference_gate import InferenceGate
 from app.adapters.ollama_client import OllamaClient
+from app.adapters.ollama_minutes import create_ollama_minutes_extractor
+from app.adapters.model_factories import create_community1, create_faster_whisper
 from app.core.meeting_minutes import (
     MeetingMinutesCoordinator,
     MinutesCoordinatorClosedError,
@@ -33,7 +36,6 @@ from app.core.meeting_minutes import (
     render_transcript_text,
 )
 from app.core.minutes_contract import MinutesDraft
-from app.core.minutes_extractor import OllamaMinutesExtractor
 from app.core.transcription_jobs import (
     CoordinatorClosedError,
     JobError,
@@ -101,15 +103,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         app.state.coordinator = TranscriptionCoordinator(
             SpeakerAttributedJob(
-                Path("models/faster-whisper-large-v3-turbo"),
-                Path("models/pyannote-community-1"),
-                device,
+                partial(
+                    create_faster_whisper,
+                    Path("models/faster-whisper-large-v3-turbo"),
+                    device,
+                ),
+                partial(create_community1, Path("models/pyannote-community-1"), device),
             ),
             inference_gate=inference_gate,
         )
         app.state.ollama_client = OllamaClient(inference_gate)
         app.state.minutes_coordinator = MeetingMinutesCoordinator(
-            OllamaMinutesExtractor(app.state.ollama_client)
+            create_ollama_minutes_extractor(app.state.ollama_client)
         )
     except BaseException:
         app.state.upload_dir.rmdir()

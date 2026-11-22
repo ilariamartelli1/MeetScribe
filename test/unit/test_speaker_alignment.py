@@ -12,7 +12,7 @@ from app.core.diarization_contract import (
 )
 from app.core.speaker_alignment import SpeakerAttribution, align_speakers
 
-ASR = ModelProvenance("fake", "1", "asr", "revision", "digest", "cpu", "int8", True, 5)
+ASR = ModelProvenance("fake", "1", "asr", "revision", "digest", "cpu")
 DIARIZATION = DiarizationProvenance("fake", "1", "diarizer", "revision", "cpu")
 
 

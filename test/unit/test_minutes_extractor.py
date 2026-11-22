@@ -1,5 +1,7 @@
 """Verify bounded, complete minutes extraction through a replaceable model client."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 
@@ -8,22 +10,29 @@ import pytest
 from app.core.asr_contract import Language, ModelProvenance, TranscriptSegment
 from app.core.diarization_contract import Diarization, DiarizationProvenance
 from app.core.minutes_extractor import (
-    DEFAULT_MINUTES_EXTRACTION_BUDGET,
     MinutesContextBudgetError,
     MinutesExtractionBudget,
     MinutesIncompleteResponseError,
     MinutesTokenAccountingError,
-    OllamaMinutesExtractor,
+    BoundedMinutesExtractor,
+    GenerationResult,
     build_minutes_prompt,
     prompt_token_upper_bound,
 )
 from app.core.minutes_validation import MinutesEvidenceError, MinutesResponseShapeError
-from app.adapters.ollama_client import OllamaGenerationResult
 from app.core.speaker_alignment import AttributedTranscript, SpeakerAttribution
 
-ASR_PROVENANCE = ModelProvenance(
-    "fake", "1.0", "asr", "revision", "digest", "cpu", "int8", True, 5
-)
+DEFAULT_MINUTES_EXTRACTION_BUDGET = MinutesExtractionBudget(4096, 768, 128)
+
+
+def make_extractor(
+    client: FakeModelClient,
+    budget: MinutesExtractionBudget = DEFAULT_MINUTES_EXTRACTION_BUDGET,
+) -> BoundedMinutesExtractor:
+    return BoundedMinutesExtractor(client, budget, prompt_token_upper_bound)
+
+
+ASR_PROVENANCE = ModelProvenance("fake", "1.0", "asr", "revision", "digest", "cpu")
 DIARIZATION_PROVENANCE = DiarizationProvenance(
     "fake", "1.0", "diarizer", "revision", "cpu"
 )
@@ -90,8 +99,8 @@ class FakeModelClient:
         done_reason: str = "stop",
         error: RuntimeError | None = None,
     ) -> None:
-        self.result = OllamaGenerationResult(
-            text, done_reason, prompt_tokens, generated_tokens
+        self.result = GenerationResult(
+            text, done_reason == "stop", prompt_tokens, generated_tokens
         )
         self.error = error
         self.calls = 0
@@ -102,28 +111,22 @@ class FakeModelClient:
         self,
         prompt: str,
         *,
-        num_ctx: int,
-        num_predict: int,
+        context_size: int,
+        max_output_tokens: int,
         temperature: float,
-        response_format: dict[str, object],
-    ) -> OllamaGenerationResult:
+        response_schema: dict[str, object],
+    ) -> GenerationResult:
         self.calls += 1
         self.prompt = prompt
         self.request = {
-            "num_ctx": num_ctx,
-            "num_predict": num_predict,
+            "context_size": context_size,
+            "max_output_tokens": max_output_tokens,
             "temperature": temperature,
-            "response_format": response_format,
+            "response_schema": response_schema,
         }
         if self.error is not None:
             raise self.error
         return self.result
-
-
-def test_default_budget_uses_only_the_measured_model_context() -> None:
-    assert DEFAULT_MINUTES_EXTRACTION_BUDGET.context_size == 4096
-    assert DEFAULT_MINUTES_EXTRACTION_BUDGET.max_generated_tokens == 768
-    assert DEFAULT_MINUTES_EXTRACTION_BUDGET.chat_template_reserve_tokens == 128
 
 
 def test_extractor_sends_all_segments_and_validates_the_final_json() -> None:
@@ -141,7 +144,7 @@ def test_extractor_sends_all_segments_and_validates_the_final_json() -> None:
         ]
     )
     client = FakeModelClient(response, prompt_tokens=200, generated_tokens=150)
-    extractor = OllamaMinutesExtractor(client)
+    extractor = make_extractor(client)
 
     result = asyncio.run(extractor.extract(transcript))
 
@@ -171,10 +174,10 @@ def test_extractor_sends_all_segments_and_validates_the_final_json() -> None:
         )
     )
     assert client.request is not None
-    assert client.request["num_ctx"] == 4096
-    assert client.request["num_predict"] == 768
+    assert client.request["context_size"] == 4096
+    assert client.request["max_output_tokens"] == 768
     assert client.request["temperature"] == 0.0
-    schema = client.request["response_format"]
+    schema = client.request["response_schema"]
     assert isinstance(schema, dict)
     properties = schema["properties"]
     assert isinstance(properties, dict)
@@ -203,7 +206,7 @@ def test_extractor_fails_one_token_over_budget_before_calling_model() -> None:
         generated_tokens=output_reserve,
     )
     exact_result = asyncio.run(
-        OllamaMinutesExtractor(exact_client, exact_budget).extract(transcript)
+        make_extractor(exact_client, exact_budget).extract(transcript)
     )
     assert (
         exact_result.prompt_token_upper_bound + output_reserve
@@ -218,9 +221,7 @@ def test_extractor_fails_one_token_over_budget_before_calling_model() -> None:
     too_small_client = FakeModelClient(response)
     with pytest.raises(MinutesContextBudgetError, match="no partial draft"):
         asyncio.run(
-            OllamaMinutesExtractor(too_small_client, too_small_budget).extract(
-                transcript
-            )
+            make_extractor(too_small_client, too_small_budget).extract(transcript)
         )
     assert too_small_client.calls == 0
 
@@ -230,8 +231,18 @@ def test_overlong_transcript_is_rejected_without_partial_inference() -> None:
     client = FakeModelClient(_response())
 
     with pytest.raises(MinutesContextBudgetError):
-        asyncio.run(OllamaMinutesExtractor(client).extract(transcript))
+        asyncio.run(make_extractor(client).extract(transcript))
 
+    assert client.calls == 0
+
+
+def test_invalid_provider_prompt_bound_is_rejected_before_inference() -> None:
+    client = FakeModelClient(_response())
+    extractor = BoundedMinutesExtractor(
+        client, DEFAULT_MINUTES_EXTRACTION_BUDGET, lambda _prompt, _budget: 0
+    )
+    with pytest.raises(MinutesTokenAccountingError, match="Invalid prompt"):
+        asyncio.run(extractor.extract(_transcript("Alice will send the plan.")))
     assert client.calls == 0
 
 
@@ -266,9 +277,7 @@ def test_length_stopped_response_is_rejected_before_json_parsing() -> None:
 
     with pytest.raises(MinutesIncompleteResponseError, match="stopped"):
         asyncio.run(
-            OllamaMinutesExtractor(client).extract(
-                _transcript("Alice will send the plan.")
-            )
+            make_extractor(client).extract(_transcript("Alice will send the plan."))
         )
 
 
@@ -292,9 +301,7 @@ def test_missing_or_out_of_budget_runtime_counts_are_rejected(
 
     with pytest.raises(MinutesTokenAccountingError):
         asyncio.run(
-            OllamaMinutesExtractor(client).extract(
-                _transcript("Alice will send the plan.")
-            )
+            make_extractor(client).extract(_transcript("Alice will send the plan."))
         )
 
 
@@ -305,7 +312,7 @@ def test_runtime_prompt_count_must_not_exceed_the_byte_bound() -> None:
     client = FakeModelClient(_response(), prompt_tokens=bound + 1)
 
     with pytest.raises(MinutesTokenAccountingError):
-        asyncio.run(OllamaMinutesExtractor(client).extract(transcript))
+        asyncio.run(make_extractor(client).extract(transcript))
 
 
 @pytest.mark.parametrize(
@@ -325,9 +332,7 @@ def test_only_final_complete_and_supported_output_is_returned(
 
     with pytest.raises(error):
         asyncio.run(
-            OllamaMinutesExtractor(client).extract(
-                _transcript("Alice will send the plan.")
-            )
+            make_extractor(client).extract(_transcript("Alice will send the plan."))
         )
 
 
@@ -337,9 +342,7 @@ def test_model_failures_are_not_silently_converted_to_minutes() -> None:
 
     with pytest.raises(RuntimeError, match="local model is unavailable"):
         asyncio.run(
-            OllamaMinutesExtractor(client).extract(
-                _transcript("Alice will send the plan.")
-            )
+            make_extractor(client).extract(_transcript("Alice will send the plan."))
         )
 
 

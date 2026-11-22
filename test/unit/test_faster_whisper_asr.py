@@ -3,7 +3,7 @@
 import hashlib
 import struct
 import wave
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -60,6 +60,7 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
     transcriber = adapter.FasterWhisperTranscriber(model_dir, "cuda")
     transcript = TranscriptionService(transcriber).transcribe(Path("speech.wav"), "it")
 
+    assert isinstance(transcript.provenance, adapter.FasterWhisperProvenance)
     assert transcript.duration_ms == 1000
     assert [(s.start_ms, s.end_ms, s.text) for s in transcript.segments] == [
         (100, 500, "non")
@@ -87,6 +88,19 @@ def test_cuda_adapter_preserves_timestamps_and_requests_transcription(
     )
     assert transcript.provenance.condition_on_previous_text is False
     assert transcript.provenance.chunk_length_seconds == 30
+    assert set(asdict(transcript.provenance)) == {
+        "adapter",
+        "adapter_version",
+        "model_id",
+        "model_revision",
+        "model_sha256",
+        "device",
+        "compute_type",
+        "vad_enabled",
+        "beam_size",
+        "condition_on_previous_text",
+        "chunk_length_seconds",
+    }
 
 
 def test_cpu_is_explicit_and_silence_is_rejected(
@@ -122,6 +136,7 @@ def test_cpu_transcription_records_effective_compute_type(
         adapter.FasterWhisperTranscriber(model_dir, "cpu")
     ).transcribe(Path("speech.wav"))
 
+    assert isinstance(transcript.provenance, adapter.FasterWhisperProvenance)
     assert transcript.provenance.device == "cpu"
     assert transcript.provenance.compute_type == "int8_float32"
     assert transcript.provenance.chunk_length_seconds == 30

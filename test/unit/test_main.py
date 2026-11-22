@@ -80,7 +80,7 @@ def test_minutes_api_edit_review_and_exports_are_revision_bound(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        main, "OllamaMinutesExtractor", lambda _client: FakeMinutesExtractor()
+        main, "create_ollama_minutes_extractor", lambda _client: FakeMinutesExtractor()
     )
     with TestClient(app, base_url="http://localhost") as client:
         app.state.coordinator.shutdown()
@@ -169,7 +169,9 @@ def test_minutes_api_requires_confirmation_for_regeneration_after_edits(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     extractor = FakeMinutesExtractor()
-    monkeypatch.setattr(main, "OllamaMinutesExtractor", lambda _client: extractor)
+    monkeypatch.setattr(
+        main, "create_ollama_minutes_extractor", lambda _client: extractor
+    )
     with TestClient(app, base_url="http://localhost") as client:
         app.state.coordinator.shutdown()
         coordinator = TranscriptionCoordinator(FakeSpeakerJob(tmp_path))

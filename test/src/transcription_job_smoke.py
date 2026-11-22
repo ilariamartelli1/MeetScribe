@@ -2,14 +2,18 @@
 
 import json
 import time
+from functools import partial
 from pathlib import Path
 
+from app.adapters.model_factories import create_faster_whisper
 from app.core.transcription_jobs import TranscriptionCoordinator
-from app.core.transcription_worker import FasterWhisperJob
+from app.core.transcription_worker import TranscriptionJob
 
 
 def main() -> None:
-    coordinator = TranscriptionCoordinator(FasterWhisperJob(Path("/model"), "cuda"))
+    coordinator = TranscriptionCoordinator(
+        TranscriptionJob(partial(create_faster_whisper, Path("/model"), "cuda"))
+    )
     try:
         job_id = coordinator.submit(Path("/audio/quiet-negations-en.wav"))
         deadline = time.monotonic() + 120

@@ -34,7 +34,15 @@ means no matching result or duration is documented.
 | Integration - GPU - Speaker Alignment | [`test/integration/test_speaker_alignment.py`](../../test/integration/test_speaker_alignment.py)::`test_offline_job_attributes_alternating_synthetic_voices`;<br>`test_offline_job_produces_segments_and_turns_in_english_and_italian`;<br>`test_offline_job_transcribes_all_two_voice_speech` | Attribution and output-shape checks **PASS**; exact-text check **FAIL** (`Friday` → `Fragi`, `Elena` → `Elina`) | 31.90 s shared English/Italian fixture setup; not full config wall time |
 | Integration - Synthetic Two-Voice Fixture | Configured target [`test/integration/test_diarization_adapter.py`](../../test/integration/test_diarization_adapter.py) uses `-k versioned`, which matches no test there. The related in-code fixture check is [`test/unit/test_asr_helpers.py`](../../test/unit/test_asr_helpers.py)::`test_integration_paths_use_versioned_fixtures`, but this config does not target it. | No tests selected by the current target/filter; no result reported | Not reported |
 | Integration - GPU - ASR Five-minute MP3 (long) | [`test/integration/test_asr_long_recording.py`](../../test/integration/test_asr_long_recording.py)::`test_five_minute_mp3_has_bounded_timestamps_and_final_speech` | **PASS** (2026-11-21 all-opt-in run) | 10.95 s |
-| Unit Tests | All pytest tests under [`test/unit/`](../../test/unit/) (directory target; no single test node) | Latest broader default suite: **277 passed, 31 skipped** (application folder grouping update below); not isolated to this configuration | 14.61 s for the broader default suite; unit-only runtime not reported |
+| Unit Tests | All pytest tests under [`test/unit/`](../../test/unit/) (directory target; no single test node) | **285 passed** (provider-independent pipeline update below) | 14.48 s, unit-only command |
+
+**Provider-independent pipeline update:** The unit-only command
+`uv run --locked python -m pytest -q test/unit` passed **285 tests** in
+14.48 seconds, with one existing Starlette/AnyIO deprecation warning and no
+skips. It includes fake-provider and spawned-worker checks, not real-model
+execution. Real-model, GPU handoff, browser, Docker and other integration
+tests were not run for this refactor; the integration results above remain
+historical.
 
 **Application folder grouping update:** The default suite passed **277 tests**
 and skipped **31 opt-in cases** in 14.61 seconds, with the existing

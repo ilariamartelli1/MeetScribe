@@ -21,13 +21,8 @@ class ModelProvenance:
     adapter_version: str
     model_id: str
     model_revision: str
-    model_sha256: str
-    device: str
-    compute_type: str
-    vad_enabled: bool
-    beam_size: int
-    condition_on_previous_text: bool | None = None
-    chunk_length_seconds: int | None = None
+    model_sha256: str | None = None
+    device: str | None = None
 
 
 @dataclass(frozen=True)
@@ -40,3 +35,7 @@ class Transcript:
 
 class Transcriber(Protocol):
     def transcribe(self, audio_path: Path, language: Language) -> Transcript: ...
+
+
+class ManagedTranscriber(Transcriber, Protocol):
+    def close(self) -> None: ...

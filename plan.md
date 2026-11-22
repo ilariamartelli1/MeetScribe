@@ -21,6 +21,14 @@ The current local app retains the intermediate release's **5 minutes / 100 MB** 
   `app/infrastructure/`. Keep the API and container startup entry points in
   place. This move preserves existing behavior and does not by itself remove
   existing provider or infrastructure dependencies from the core.
+- **Provider-independent pipeline boundaries.** Supply
+  spawn-compatible speech-model factories to the core jobs and translate
+  provider-specific minutes requests, responses and budget configuration at
+  the adapter boundary. Retain the current providers, fail-fast context budget,
+  shared GPU gate, cancellation and release behavior. ASR-specific provenance
+  remains available through the faster-whisper adapter while other providers
+  can supply their own provenance fields. Unit tests cover the boundaries;
+  real-model, browser and Docker integration checks have not been rerun.
 
 ## Architecture choices and why
 
@@ -147,7 +155,7 @@ description resolves the pronoun correctly, so human review remains necessary.
 
 ## Sprint 4 - Saved meetings, audio download and honest retention
 
-**4.1 Persistent meeting records.** Introduce SQLite migrations, local audio/results volumes, meeting IDs and model provenance. Save the original uploaded audio and drafts across restarts from this point forward for later access until deletion or expiry; temporary-session results from earlier releases are not migrated. Keep the DB on a local persistent volume: enable WAL and `synchronous=FULL` for durable commits, `foreign_keys=ON` and a bounded `busy_timeout` on every connection; use connections owned by one execution context, short transactions outside inference, and versioned migrations that reject an unsupported newer schema. No live-file-copy backups. *Check:* save/restart/reload/migration tests, concurrent reads/writes, lock timeout and disk-full errors, and proof recordings remain outside the web root.
+**4.1 Persistent meeting records (next step).** Introduce SQLite migrations, local audio/results volumes, meeting IDs and model provenance. Save the original uploaded audio and drafts across restarts from this point forward for later access until deletion or expiry; temporary-session results from earlier releases are not migrated. Keep the DB on a local persistent volume: enable WAL and `synchronous=FULL` for durable commits, `foreign_keys=ON` and a bounded `busy_timeout` on every connection; use connections owned by one execution context, short transactions outside inference, and versioned migrations that reject an unsupported newer schema. No live-file-copy backups. *Check:* save/restart/reload/migration tests, concurrent reads/writes, lock timeout and disk-full errors, and proof recordings remain outside the web root.
 
 **4.2 Persistent worker ownership.** Use a single Uvicorn API process (no multiworker or auto-reload in Docker) and take a nonblocking, exclusive Linux file lock in the same local data volume at startup; a second app instance sharing that volume fails startup clearly. Atomically claim SQLite jobs by status/attempt ID, so a stale attempt cannot publish after restart; release the file lock automatically on process exit. Define bounded retries only for identified transient failures; mark non-retryable errors failed. Publish staged artifacts using temporary names and atomic rename, reconcile orphaned files on startup, and checkpoint job state at stage boundaries without a transaction held during inference. Never restart an attempt until its former owner is confirmed gone. *Check:* launch two app instances against one volume; inject interruption immediately before/after artifact rename and DB commit, transient/permanent failures, and crash/restart during each stage. Verify no duplicate GPU job, stale publication, partial complete state or leaked orphan; keep status responsive.
 

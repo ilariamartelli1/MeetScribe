@@ -13,9 +13,7 @@ from app.core.asr_service import (
     TranscriptionService,
 )
 
-PROVENANCE = ModelProvenance(
-    "fake", "1.0", "model", "revision", "digest", "cpu", "int8", True, 5
-)
+PROVENANCE = ModelProvenance("fake", "1.0", "model", "revision", "digest", "cpu")
 
 
 def test_negations_at_original_recording_boundaries_are_preserved() -> None:
