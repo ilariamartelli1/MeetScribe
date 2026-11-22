@@ -2,6 +2,16 @@
 
 MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings and provides experimental speaker attribution through its job API. Typed draft-minutes contracts, bounded local-model generation, summary editing and TXT/JSON export are implemented for temporary jobs; saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
+## Project structure
+
+- [`app/core/`](app/core/): meeting-processing contracts, services and coordinators.
+- [`app/adapters/`](app/adapters/): model-specific integrations.
+- [`app/infrastructure/`](app/infrastructure/): configuration, uploads, inference gating and model integrity.
+- [`app/web/`](app/web/): browser interface. [`app/main.py`](app/main.py) and [`app/container_start.py`](app/container_start.py) are the API and container entry points.
+- [`test/`](test/): unit tests, integration tests, fixtures and experiments.
+- [`docs/`](docs/README.md): architecture notes, reports, investigations and status. [`plan.md`](plan.md) tracks development.
+- `Dockerfile` and `compose*.yaml`: container build and runtime configurations.
+
 **Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. With the optional local Ollama profile running, a local browser page accepts bounded WAV/MP3 uploads, shows and edits only the draft meeting summary, supports review, and downloads matching TXT/JSON minutes. TXT contains minutes only; JSON export v1 also contains source transcript segments and anonymous speaker IDs. Transcript text is not included in normal job-status responses or displayed in the browser; a low-prominence footer link opens a separate page for an explicit transcript TXT download. Results are temporary and are not restored on refresh or restart. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
 **Product direction:** The browser displays and allows editing only of the
@@ -49,12 +59,6 @@ the configurations used. See the [security overview](docs/status/security.md) fo
 network boundaries, data handling and deployment limitations.
 The [documentation index](docs/README.md) lists reports, architecture notes,
 investigations and status documents.
-
-Provider-specific faster-whisper, Community-1 and Ollama integrations live in
-`app/adapters/`; meeting-processing contracts, services and coordinators live
-in `app/core/`; and configuration, uploads, inference gating and model
-integrity live in `app/infrastructure/`. The API and container startup entry
-points remain at `app.main` and `app.container_start`.
 
 The speech pipeline accepts lazy, spawn-compatible transcriber and diarizer
 factories. The bounded minutes extractor accepts a model-neutral generation
