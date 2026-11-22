@@ -1,0 +1,5 @@
+services:
+  app:
+    volumes:
+      - ./test/data/checkpoint:/audio/checkpoint:ro
+      - ./test/data/smoke:/audio/smoke:ro
