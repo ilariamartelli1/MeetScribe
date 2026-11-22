@@ -21,6 +21,94 @@ real-model output-shape check passed; its shared fixture ran both jobs in 31.90
 seconds. The separate exact-text check still failed with `Friday` → `Fragi` and
 `Elena` → `Elina`, and the repeated-sentence check remained an XFAIL.
 
+**Sprint 3.1 update:** Added the opt-in Ollama/Qwen3 runtime and an offline
+real-model smoke. The latest default suite passed 191 tests and skipped 29
+opt-in cases in 13.32 seconds; the Docker CPU smoke passed in 3.35 seconds, and
+the pinned offline Qwen3 smoke passed in 54.09 seconds. Ruff, formatting, mypy
+and all Compose configuration checks passed. The full historical all-opt-in
+suite below was not rerun; the model smoke's GPU placement, memory snapshots,
+and bounded output settings are recorded in the
+[slice 3.1 report](sprint-3-slice-3.1.md).
+
+**Sprint 3.2 update:** Added the shared GPU inference gate and release-verified
+Ollama client. The latest default suite passed **205 tests and skipped 30
+opt-in cases** in 14.14 seconds, with one existing Starlette/AnyIO deprecation
+warning. The corrected offline real-container handoff test passed in 86.73
+seconds; ASR, GPU diarization, Ollama generation/concurrent requests,
+cancellation and the subsequent ASR stage all completed. It sampled memory
+every 0.5 seconds, observed at most about 0.53 seconds between samples during
+active stages, and confirmed 100% GPU placement for Qwen3. The run peaked at
+11.1 GiB host RAM and 5.12 GiB of 8.0 GiB swap; swap was already 4.28 GiB at
+baseline. See the [slice 3.2 report](sprint-3-slice-3.2.md) for per-stage
+measurements, the preliminary sampler limitation and test caveats. The other
+opt-in integration checks and the all-opt-in suite were not rerun.
+
+**Sprint 3.3 update:** Added strict minutes response/export schemas and separate
+completeness, citation and evidence checks. The focused contract and validation
+tests passed **28 tests**. The latest default suite passed **233 tests and
+skipped 30 opt-in cases** in 13.83 seconds, with the same existing
+Starlette/AnyIO deprecation warning. The opt-in GPU, Ollama, browser and
+accuracy integration tests were not run for this schema-only slice; see the
+[slice 3.3 report](sprint-3-slice-3.3.md) for semantic-validation limits.
+
+**Sprint 3.4 update:** Added a bounded Ollama minutes extractor. Its focused
+fake-client tests passed **18 tests**. The default suite passed **251 tests and
+skipped 30 opt-in cases** in 13.92 seconds, with the same existing
+Starlette/AnyIO deprecation warning; Ruff, formatting, mypy, lockfile and
+whitespace checks passed. No real-model extraction or GPU/audio-to-minutes
+integration test was run, so the template reserve and measured runtime token
+counts remain unverified against an actual extraction. See the
+[slice 3.4 report](sprint-3-slice-3.4.md) for budget details and limitations.
+
+**Sprint 3.5 update:** Added the temporary minutes workflow/API and
+summary-only edit/review/export UI. The focused minutes, API, asset and upload
+checks passed **54 tests**; the opt-in Chromium browser flow passed **8 tests**
+in 11.07 seconds. The default suite passed **264 tests and skipped 28 opt-in
+cases** in 14.54 seconds, with the same Starlette/AnyIO deprecation warning.
+Ruff, formatting, mypy, lockfile, whitespace, JavaScript syntax and Compose
+configuration checks passed. TXT minutes contain only the summary; JSON export
+v1 intentionally includes source transcript segments. Manual edits permit
+uncited human-added items and are not given the model-evidence validation used
+for generated minutes; they remain drafts until reviewed. No real Ollama
+minutes extraction or GPU/audio-to-minutes run was performed. The historical
+all-opt-in run below predates this slice. See the
+[slice 3.5 report](sprint-3-slice-3.5.md) for privacy, edit and validation
+boundaries.
+
+**Sprint 3.6 update:** Added explicit minutes regeneration and source-revision
+handling. Changed transcripts mark existing minutes stale and invalidate
+review; stale exports retain the exact source segments cited. Regeneration
+requires explicit confirmation before overwriting manual edits and keeps the
+previous draft if cancelled or failed. The focused manager/API/asset checks
+passed **29 tests**; the opt-in Chromium browser suite passed **10 tests** in
+17.95 seconds. The default suite passed **271 tests and skipped 30 opt-in
+cases** in 14.34 seconds, with the same deprecation warning. Ruff, formatting,
+mypy, lockfile, whitespace and JavaScript syntax checks passed. No real-model
+extraction or GPU/audio-to-minutes test was run; see the
+[slice 3.6 report](sprint-3-slice-3.6.md). The historical all-opt-in run below
+predates slices 3.5–3.6.
+
+**Sprint 3.7 update (incomplete):** Added the opt-in offline audio-to-minutes
+evaluation harness and extraction-token metrics. The focused minutes/API/assets
+checks passed **29 tests and skipped 1**; the Chromium browser suite passed
+**10 tests**. The default suite passed **271 tests and skipped 31** in 14.47
+seconds. Ruff, formatting, mypy, lockfile, whitespace, JavaScript syntax and
+Compose configuration checks passed.
+
+The approved real Docker/GPU run failed after **322.69 seconds**. The
+297.305-second English checkpoint transcribed successfully, but minutes
+generation returned `MinutesContextBudgetError`: the conservative total
+context estimate (prompt upper bound plus reserved generation tokens) was
+**11,322 tokens versus a 4,096-token context**. The failure occurred before
+model generation and correctly produced no partial draft. The Italian and
+known-ASR-error recordings were not reached; there are no real extraction-token
+counts, successful minutes-quality results or resource report from this run.
+Human correction time was not measured. By user decision, retain fail-fast
+behavior and leave slice 3.7 incomplete rather than adding transcript
+chunking or changing models/context. The five-minute audio limit therefore
+does not guarantee that its transcript can be summarized; see the
+[slice 3.7 report](sprint-3-slice-3.7.md).
+
 **All-opt-in test run:** On 2026-11-21, the complete suite ran with all opt-in
 flags enabled using:
 

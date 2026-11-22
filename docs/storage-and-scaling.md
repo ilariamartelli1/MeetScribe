@@ -21,6 +21,15 @@ for current limits and implementation slices.
   limit must be measured and chosen; removing the 30-minute limit does not
   imply unlimited uploads.
 
+## Current temporary behavior
+
+The current app keeps at most 16 transcription results and draft-minutes
+sessions in process memory, expiring completed results after up to one hour.
+They are lost on refresh or restart; the uploaded audio is removed after
+transcription. This temporary behavior is not the planned seven-day retention
+and does not preserve original audio for later download. Persistent meeting
+records, saved audio, deletion, expiry and storage quotas remain future work.
+
 ## Estimating original audio
 
 These examples assume one two-hour recording per meeting, a constant daily
@@ -48,6 +57,23 @@ overhead. Some may consume disk, RAM, or both depending on implementation.
 Concurrent uploads and processing may temporarily need additional copies or
 space. Models and other applications can share the same underlying disk even
 when their files are outside the meeting-storage quota.
+
+## Current summary-model artifacts
+
+The pinned Qwen3 4B Q4_K_M model layer is 2,497,280,480 bytes (about 2.50 GB
+decimal). The digest-pinned Ollama 0.40.17 image's Linux/amd64 registry layers
+total about 3.16 GiB compressed; extracted image storage differs. These are
+shared host/VM disk costs, not per-meeting costs, and are separate from the
+ASR and diarization models. Artifact sizes do not establish RAM or VRAM use;
+that depends on runtime settings and must be measured on the target hardware.
+
+One sequential ASR -> diarization -> Qwen3 -> ASR handoff run on the
+development RTX 4050 used a 4,096-token summary context. Total GPU memory
+peaked at 3.36 GiB of 6.0 GiB, and host memory use peaked at 11.1 GiB of
+15.3 GiB; swap peaked at 5.12 GiB of 8.0 GiB, from a 4.28 GiB baseline. All
+stages completed without OOM or GPU offload. This is a single synthetic-audio
+measurement, not a capacity guarantee, a two-hour throughput result, or a
+prediction for the future VM; see the [slice 3.2 report](sprint-3-slice-3.2.md).
 
 For illustration, with a hypothetical **50 GB quota for meeting originals
 alone**, 20 daily two-hour 44.1 kHz stereo WAV files add about 25.4 GB per

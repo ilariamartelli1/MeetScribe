@@ -1,17 +1,17 @@
 # MeetScribe
 
-MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings and provides experimental speaker attribution through its job API. Editable draft minutes and saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
+MeetScribe is a local, Dockerized meeting assistant in development. It transcribes short WAV/MP3 recordings and provides experimental speaker attribution through its job API. Typed draft-minutes contracts, bounded local-model generation, summary editing and TXT/JSON export are implemented for temporary jobs; saved meetings are planned. Audio and transcripts are processed locally, using only synthetic or explicitly authorized non-sensitive test recordings during development.
 
-**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. A local browser page accepts bounded WAV/MP3 uploads and can inspect or cancel temporary transcription jobs, view a read-only transcript, and download an unreviewed draft with optional anonymous speaker labels. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
+**Current status:** A FastAPI app runs in Docker with either GPU access or an explicit CPU test configuration. With the optional local Ollama profile running, a local browser page accepts bounded WAV/MP3 uploads, shows and edits only the draft meeting summary, supports review, and downloads matching TXT/JSON minutes. TXT contains minutes only; JSON export v1 also contains source transcript segments and anonymous speaker IDs. Transcript text is not included in normal job-status responses or displayed in the browser; a low-prominence footer link opens a separate page for an explicit transcript TXT download. Results are temporary and are not restored on refresh or restart. The first-release checkpoint has been verified on synthetic fixtures, not representative real meetings. See [plan.md](plan.md) for the reviewable checkpoints.
 
-**Planned workflow:** The final browser UI will display and allow editing only
-of the summary, including decisions, action items, owners and deadlines.
-Transcript text and speaker-attributed segments will not be displayed or
-editable in the browser. An optional, non-conspicuous button outside the front
-page will download the unedited transcript with speaker labels for verification
+**Product direction:** The browser displays and allows editing only of the
+summary, including topics, decisions, action items, owners and deadlines.
+Transcript text and speaker-attributed segments are not displayed or editable
+in the browser. An optional, non-conspicuous download button on a separate page
+provides the unedited transcript with anonymous speaker labels for verification
 or debugging. Original uploaded audio will be saved for later download until
-deletion or expiry, but the browser will not play it. Summary generation,
-editing and persistent meeting storage are not implemented yet.
+deletion or expiry, but the browser will not play it. Persistent meeting
+storage, saved audio, manual deletion and seven-day expiry are not implemented.
 See [storage and scaling estimates](docs/storage-and-scaling.md) for longer
 recordings and potential team use.
 
@@ -45,7 +45,8 @@ Unit tests live in `test/unit/`; Docker and GPU integration tests live in
 target `test/unit`, and **Integration Test** can target `test/integration` with
 `MEETSCRIBE_ASR_TESTS=1` and `MEETSCRIBE_DOCKER_TESTS=1`.
 See [test status](docs/test-status.md) for the latest recorded results and
-the configurations used.
+the configurations used. See the [security overview](docs/security.md) for
+network boundaries, data handling and deployment limitations.
 
 The browser integration tests use Playwright with fake inference. Install Chromium
 with `uv run --locked python -m playwright install chromium` if no supported browser
@@ -97,20 +98,122 @@ Both configurations publish the app on `127.0.0.1:8000`, not a LAN interface. Se
 MEETSCRIBE_DOCKER_TESTS=1 uv run --locked python -m pytest -q test/integration/test_docker.py
 ```
 
+### Optional local summary model
+
+Slice 3.1 adds a private Ollama service; slice 3.5 connects bounded minutes
+generation, summary editing and export to the job API and browser. The normal
+Compose profile does not start Ollama.
+Its model files live in the gitignored `ollama/` directory, and the runtime
+service has no published host port. Ollama is attached only to the internal
+inference network shared with the app, with cloud features disabled. The
+Qwen3 4B Q4_K_M model layer is 2,497,280,480 bytes and is Apache-2.0
+licensed; the Ollama image and exact model digest are recorded in
+[`app/model_manifests/summary_model.toml`](app/model_manifests/summary_model.toml).
+
+Provision the model before starting the runtime. This temporary Compose
+override gives Ollama outbound access only while pulling from the model
+registry; run these commands before starting other services in the project:
+
+```sh
+docker compose --profile summary \
+  -f compose.yaml -f compose.ollama-provision.yaml up -d ollama
+docker compose --profile summary \
+  -f compose.yaml -f compose.ollama-provision.yaml exec ollama ollama pull qwen3:4b
+docker compose --profile summary \
+  -f compose.yaml -f compose.ollama-provision.yaml exec ollama ollama list
+docker compose --profile summary \
+  -f compose.yaml -f compose.ollama-provision.yaml down
+```
+
+Start the app and private model service with:
+
+```sh
+docker compose --profile summary up --build -d app ollama
+```
+
+To check app-to-Ollama connectivity, pinned model identity, GPU placement and
+a short real-model generation with outbound networking blocked:
+
+```sh
+MEETSCRIBE_OLLAMA_TESTS=1 \
+  uv run --locked python -m pytest -q -s test/integration/test_ollama_model.py
+```
+
+To measure the serialized ASR -> diarization -> Ollama -> ASR handoff,
+including concurrent generation requests, cancellation, model release and
+sampled host/GPU/container memory:
+
+```sh
+MEETSCRIBE_GPU_HANDOFF_TESTS=1 PYTHONPATH=. \
+  uv run --locked python -m pytest -q -s test/integration/test_gpu_handoff.py
+```
+
+To evaluate real offline transcription, speaker attribution and minutes
+generation on the synthetic English/Italian checkpoint recordings plus the
+short known-ASR-error diagnostic:
+
+```sh
+MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
+  uv run --locked python -m pytest -q -s test/integration/test_minutes_quality.py
+```
+
+This multi-recording test requires the provisioned ASR, Community-1 and Qwen3
+models, an NVIDIA GPU, and Docker's NVIDIA Container Toolkit. It reports source
+transcripts, generated drafts, extraction-token counts, stage durations and
+sampled resources when all cases complete. In the first real run, transcription
+of the 297-second English checkpoint succeeded, but minutes generation failed
+fast because its conservative total context estimate (prompt upper bound plus
+reserved generation tokens) was 11,322 tokens against the configured
+4,096-token context. The Italian and known-ASR-error cases did not
+run, and no generated draft or resource report was produced. The current
+fail-fast behavior is retained; a successful upload is not guaranteed to fit
+the summary context. Slice 3.7 remains incomplete. This is not an
+ASR/minutes-accuracy threshold or a VM-capacity test; see [minutes context
+scaling and limitations](docs/minutes-context-scaling.md) for current evidence
+and known limits, and [minutes retrieval options](docs/minutes-retrieval-options.md)
+for exploratory chunking and RAG tradeoffs.
+
+The GPU handoff test requires the provisioned ASR, Community-1 and Qwen3
+models, an NVIDIA GPU, and Docker's NVIDIA Container Toolkit. It runs synthetic
+audio in an isolated offline Compose project; it is not an ASR-accuracy,
+meeting-summary-quality or VM-capacity test. The shorter Ollama smoke also
+does not evaluate meeting-summary accuracy. When all cases complete, the
+audio-to-minutes test reports generated output for manual comparison; it does
+not automatically assess factual correctness or measure human correction time.
+
 Provision both the transcription and Community-1 models as described below
-before starting a job. After starting the GPU configuration, open
-`http://127.0.0.1:8000/` in a browser.
-Select a mono or stereo WAV or MP3 (up to five minutes and 100 MB), choose its language,
-and transcribe. View the read-only timestamped draft and download it as TXT.
-The collapsed "Optional speaker-attributed transcript download" disclosure
-provides a second TXT with anonymous speaker labels; segments without a unique
-speaker are marked "Unknown speaker". These labels may be incorrect and do not
-identify people.
-Cancel stops an active job; if the 16-result limit is reached, the page
-asks before replacing the oldest result. Results are temporary and are not
-restored on refresh or restart. Downloads are stored by the browser and are not
-deleted by the application. Use only synthetic or explicitly authorized,
-non-sensitive recordings.
+before starting a job. To use the minutes workflow, start the GPU app and
+Ollama profile with
+`docker compose --profile summary up --build -d app ollama`; without that
+optional profile, the browser provides transcription only. Open
+`http://127.0.0.1:8000/` in a browser. Select a mono or stereo WAV or MP3 (up
+to five minutes and 100 MB), choose its language, and, with the summary profile
+running, create a draft summary. Minutes generation requires the complete
+transcript to fit the configured 4,096-token context; an over-budget transcript
+fails without a partial draft, even when its audio upload is within the current
+limit.
+Edit the summary, topics, decisions and action items, then save before marking
+the current revision reviewed or downloading TXT/JSON exports. TXT contains
+only minutes; JSON v1 includes the source transcript segments and speaker IDs.
+A replaced source transcript marks its minutes stale; regeneration is
+deliberate, requires confirmation before replacing saved edits, and preserves
+the previous draft if it fails or is cancelled. The front page
+does not display transcript text or speaker labels. Its low-prominence footer
+link opens a separate page where the unedited transcript can be explicitly
+downloaded as TXT; anonymous speaker labels may be incorrect and do not
+identify people. Cancel stops transcription or summary generation. If the
+16-result limit is reached, the page asks before replacing the oldest result.
+Results are held temporarily in memory and are not restored on refresh or
+restart. **Retention edge to verify:** transcription and minutes each use a
+one-hour lifetime, but their clocks start at different completion times.
+Minutes may become unavailable before their own lifetime ends if the
+transcription job expires first; this is inferred from the current code and
+has not yet been reproduced or covered by a regression test. Revisit when
+changing retention behavior; see the [slice 3.5 report](docs/sprint-3-slice-3.5.md).
+The uploaded audio is removed after transcription;
+original-audio retention is planned for a later slice. Downloads are stored by
+the browser and are not deleted by the application. Use only synthetic or
+explicitly authorized, non-sensitive recordings.
 
 ## GPU transcription feasibility
 
