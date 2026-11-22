@@ -86,8 +86,12 @@ def test_upload_runs_job_and_removes_generated_audio(client: TestClient) -> None
     assert result.segments[0].text.startswith("upload-")
     status = client.get(f"/api/v1/jobs/{job_id}")
     assert status.json()["state"] == "succeeded"
-    assert status.json()["result"]["language"] == "it"
+    assert "result" not in status.json()
+    assert result.language == "it"
     assert status.headers["cache-control"] == "no-store"
+    transcript = client.get(f"/api/v1/jobs/{job_id}/transcript.txt")
+    assert transcript.status_code == 200
+    assert result.segments[0].text in transcript.text
     assert not list(app.state.upload_dir.iterdir())
 
 

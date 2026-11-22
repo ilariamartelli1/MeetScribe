@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import tempfile
@@ -9,19 +10,41 @@ from typing import ParamSpec, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from app.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
 from app.config import Settings
+from app.inference_gate import InferenceGate
+from app.ollama_client import OllamaClient
+from app.meeting_minutes import (
+    MeetingMinutesCoordinator,
+    MinutesCoordinatorClosedError,
+    MinutesEditValidationError,
+    MinutesJobCapacityError,
+    MinutesJobFinishedError,
+    MinutesJobNotFoundError,
+    MinutesJobNotReadyError,
+    MinutesRegenerationConfirmationRequired,
+    MinutesJobSnapshot,
+    MinutesRevisionConflict,
+    MinutesSourceUpdateConflict,
+    render_minutes_text,
+    render_transcript_text,
+)
+from app.minutes_contract import MinutesDraft
+from app.minutes_extractor import OllamaMinutesExtractor
 from app.transcription_jobs import (
     CoordinatorClosedError,
+    JobError,
     JobBusyError,
     JobFinishedError,
     JobNotFoundError,
-    JobSnapshot,
+    JobState,
     ResultCapacityError,
     TranscriptionCoordinator,
 )
+from app.speaker_alignment import AttributedTranscript
 from app.transcription_worker import SpeakerAttributedJob
 from app.uploads import (
     MAX_REQUEST_BYTES,
@@ -37,7 +60,13 @@ logger = logging.getLogger(__name__)
 P = ParamSpec("P")
 T = TypeVar("T")
 WEB_DIR = Path(__file__).resolve().parent / "web"
-WEB_PATHS = {"/", "/static/app.js", "/static/styles.css"}
+WEB_PATHS = {
+    "/",
+    "/transcript-download",
+    "/static/app.js",
+    "/static/transcript.js",
+    "/static/styles.css",
+}
 CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; "
     "connect-src 'self'; base-uri 'none'; form-action 'self'; "
@@ -67,13 +96,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         raise ValueError("MEETSCRIBE_DEVICE must be 'cuda' or 'cpu'.")
     app.state.upload_dir = Path(tempfile.mkdtemp(prefix="meetscribe-uploads-"))
+    inference_gate = InferenceGate()
+    app.state.inference_gate = inference_gate
     try:
         app.state.coordinator = TranscriptionCoordinator(
             SpeakerAttributedJob(
                 Path("models/faster-whisper-large-v3-turbo"),
                 Path("models/pyannote-community-1"),
                 device,
-            )
+            ),
+            inference_gate=inference_gate,
+        )
+        app.state.ollama_client = OllamaClient(inference_gate)
+        app.state.minutes_coordinator = MeetingMinutesCoordinator(
+            OllamaMinutesExtractor(app.state.ollama_client)
         )
     except BaseException:
         app.state.upload_dir.rmdir()
@@ -85,17 +121,49 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        app.state.coordinator.shutdown()
-        if app.state.stuck_validation is not None:
-            process, audio_path = app.state.stuck_validation
-            stop_validation_worker(process)
-            audio_path.unlink(missing_ok=True)
-        if app.state.failed_upload_cleanup is not None:
-            app.state.failed_upload_cleanup.unlink(missing_ok=True)
-        app.state.upload_dir.rmdir()
+        try:
+            await app.state.minutes_coordinator.close()
+        finally:
+            try:
+                app.state.coordinator.shutdown()
+                if app.state.stuck_validation is not None:
+                    process, audio_path = app.state.stuck_validation
+                    stop_validation_worker(process)
+                    audio_path.unlink(missing_ok=True)
+                if app.state.failed_upload_cleanup is not None:
+                    app.state.failed_upload_cleanup.unlink(missing_ok=True)
+                app.state.upload_dir.rmdir()
+            finally:
+                await app.state.ollama_client.aclose()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    state: JobState
+    error: JobError | None = None
+
+
+class MinutesEditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1, strict=True)
+    minutes: dict[str, object]
+
+
+class MinutesReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1, strict=True)
+
+
+class MinutesRegenerateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1, strict=True)
+    confirm_overwrite: bool = Field(default=False, strict=True)
 
 
 @app.middleware("http")
@@ -119,7 +187,7 @@ async def protect_job_requests(
                 origin is not None
                 and origin != f"{request.url.scheme}://{request.url.netloc}"
             )
-            or (request.method == "POST" and origin is None)
+            or (request.method in ("POST", "PUT", "PATCH", "DELETE") and origin is None)
         ):
             return JSONResponse(
                 {"detail": "A same-origin localhost request is required."},
@@ -137,9 +205,19 @@ def browser_page() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
 
 
+@app.get("/transcript-download", include_in_schema=False)
+def transcript_download_page() -> FileResponse:
+    return FileResponse(WEB_DIR / "transcript.html")
+
+
 @app.get("/static/app.js", include_in_schema=False)
 def browser_script() -> FileResponse:
     return FileResponse(WEB_DIR / "app.js", media_type="text/javascript")
+
+
+@app.get("/static/transcript.js", include_in_schema=False)
+def transcript_script() -> FileResponse:
+    return FileResponse(WEB_DIR / "transcript.js", media_type="text/javascript")
 
 
 @app.get("/static/styles.css", include_in_schema=False)
@@ -206,6 +284,9 @@ async def upload_job(request: Request) -> JSONResponse:
                 cleanup_audio=True,
             )
             transferred = True
+            await request.app.state.minutes_coordinator.retain(
+                active_coordinator.job_ids()
+            )
             return JSONResponse({"job_id": job_id}, status_code=202)
         except ValidationWorkerStuck as exc:
             assert parser is not None
@@ -252,19 +333,24 @@ async def upload_job(request: Request) -> JSONResponse:
 
 
 @app.get(f"{settings.api_prefix}/jobs/{{job_id}}")
-def job_status(job_id: str, request: Request) -> JobSnapshot:
+def job_status(job_id: str, request: Request) -> JobStatusResponse:
     coordinator: TranscriptionCoordinator = request.app.state.coordinator
     try:
-        return coordinator.get(job_id)
+        snapshot = coordinator.get(job_id)
     except JobNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return JobStatusResponse(
+        job_id=snapshot.job_id,
+        state=snapshot.state,
+        error=snapshot.error,
+    )
 
 
 @app.post(f"{settings.api_prefix}/jobs/{{job_id}}/cancel")
-def cancel_job(job_id: str, request: Request) -> JobSnapshot:
+def cancel_job(job_id: str, request: Request) -> JobStatusResponse:
     coordinator: TranscriptionCoordinator = request.app.state.coordinator
     try:
-        return coordinator.cancel(job_id)
+        snapshot = coordinator.cancel(job_id)
     except JobNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except JobFinishedError as exc:
@@ -276,3 +362,215 @@ def cancel_job(job_id: str, request: Request) -> JobSnapshot:
         raise HTTPException(
             status_code=503, detail="Could not stop the worker; retry cancellation."
         ) from exc
+    return JobStatusResponse(
+        job_id=snapshot.job_id,
+        state=snapshot.state,
+        error=snapshot.error,
+    )
+
+
+def _get_attributed_transcript(
+    coordinator: TranscriptionCoordinator, job_id: str
+) -> AttributedTranscript:
+    try:
+        snapshot = coordinator.get(job_id)
+    except JobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if snapshot.state != "succeeded":
+        raise HTTPException(
+            status_code=409, detail="Minutes require a completed transcription job."
+        )
+    if not isinstance(snapshot.result, AttributedTranscript):
+        raise HTTPException(
+            status_code=409,
+            detail="Speaker-aligned transcript is not available for this job.",
+        )
+    return snapshot.result
+
+
+async def _retain_minutes_for_current_jobs(
+    request: Request,
+) -> MeetingMinutesCoordinator:
+    minutes_coordinator: MeetingMinutesCoordinator = (
+        request.app.state.minutes_coordinator
+    )
+    coordinator: TranscriptionCoordinator = request.app.state.coordinator
+    await minutes_coordinator.retain(coordinator.job_ids())
+    return minutes_coordinator
+
+
+@app.post(f"{settings.api_prefix}/jobs/{{job_id}}/minutes", status_code=202)
+async def start_minutes(job_id: str, request: Request) -> MinutesJobSnapshot:
+    coordinator: TranscriptionCoordinator = request.app.state.coordinator
+    transcript = _get_attributed_transcript(coordinator, job_id)
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        return await minutes_coordinator.start(job_id, transcript)
+    except MinutesJobCapacityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesSourceUpdateConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesCoordinatorClosedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post(
+    f"{settings.api_prefix}/jobs/{{job_id}}/minutes/regenerate",
+    status_code=202,
+    response_model=MinutesJobSnapshot,
+)
+async def regenerate_minutes(
+    job_id: str, regeneration: MinutesRegenerateRequest, request: Request
+) -> MinutesJobSnapshot:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        return await minutes_coordinator.regenerate(
+            job_id,
+            regeneration.expected_revision,
+            confirm_overwrite=regeneration.confirm_overwrite,
+        )
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (
+        MinutesJobNotReadyError,
+        MinutesRegenerationConfirmationRequired,
+        MinutesRevisionConflict,
+    ) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesCoordinatorClosedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get(
+    f"{settings.api_prefix}/jobs/{{job_id}}/minutes",
+    response_model=MinutesJobSnapshot,
+)
+async def minutes_status(job_id: str, request: Request) -> MinutesJobSnapshot:
+    coordinator: TranscriptionCoordinator = request.app.state.coordinator
+    try:
+        coordinator.get(job_id)
+    except JobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        return await minutes_coordinator.get(job_id)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post(
+    f"{settings.api_prefix}/jobs/{{job_id}}/minutes/cancel",
+    response_model=MinutesJobSnapshot,
+)
+async def cancel_minutes(job_id: str, request: Request) -> MinutesJobSnapshot:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        return await minutes_coordinator.cancel(job_id)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MinutesJobFinishedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesCoordinatorClosedError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.patch(
+    f"{settings.api_prefix}/jobs/{{job_id}}/minutes",
+    response_model=MinutesJobSnapshot,
+)
+async def update_minutes(
+    job_id: str, edit: MinutesEditRequest, request: Request
+) -> MinutesJobSnapshot:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        minutes = MinutesDraft.model_validate_json(
+            json.dumps(edit.minutes, ensure_ascii=False)
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422, detail="Minutes do not match the required schema."
+        ) from exc
+    try:
+        return await minutes_coordinator.update(job_id, edit.expected_revision, minutes)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MinutesJobNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesEditValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post(
+    f"{settings.api_prefix}/jobs/{{job_id}}/minutes/review",
+    response_model=MinutesJobSnapshot,
+)
+async def review_minutes(
+    job_id: str, review: MinutesReviewRequest, request: Request
+) -> MinutesJobSnapshot:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        return await minutes_coordinator.mark_reviewed(job_id, review.expected_revision)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MinutesJobNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MinutesRevisionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get(f"{settings.api_prefix}/jobs/{{job_id}}/minutes.txt")
+async def download_minutes_text(job_id: str, request: Request) -> Response:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        export = await minutes_coordinator.export(job_id)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MinutesJobNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return Response(
+        render_minutes_text(export),
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="meetscribe-minutes.txt"'
+        },
+    )
+
+
+@app.get(f"{settings.api_prefix}/jobs/{{job_id}}/minutes.json")
+async def download_minutes_json(job_id: str, request: Request) -> Response:
+    minutes_coordinator = await _retain_minutes_for_current_jobs(request)
+    try:
+        export = await minutes_coordinator.export(job_id)
+    except MinutesJobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except MinutesJobNotReadyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return Response(
+        export.model_dump_json(indent=2),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": 'attachment; filename="meetscribe-minutes.json"'
+        },
+    )
+
+
+@app.get(f"{settings.api_prefix}/jobs/{{job_id}}/transcript.txt")
+def download_transcript_text(job_id: str, request: Request) -> Response:
+    coordinator: TranscriptionCoordinator = request.app.state.coordinator
+    try:
+        snapshot = coordinator.get(job_id)
+    except JobNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if snapshot.state != "succeeded" or snapshot.result is None:
+        raise HTTPException(
+            status_code=409, detail="Transcript is not available for this job."
+        )
+    return Response(
+        render_transcript_text(snapshot.result),
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="meetscribe-transcript.txt"'
+        },
+    )

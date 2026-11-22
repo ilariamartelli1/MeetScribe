@@ -20,24 +20,24 @@ main {
   background: #fff6db;
 }
 
-form, #segments {
+form, .editor-list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.8rem;
 }
 
-input, select, button {
+input, select, textarea, button {
   font: inherit;
 }
 
-.segment-text {
-  margin: 0;
-  white-space: pre-wrap;
+input, textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem;
   overflow-wrap: anywhere;
 }
 
-#segments h3 {
-  margin: 0;
-  font-size: 1rem;
+textarea {
+  resize: vertical;
 }
 
 button {
@@ -51,10 +51,45 @@ button:disabled {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
 #error {
   color: #9c1b18;
+}
+
+#minutes > section {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #d5dce1;
+}
+
+.editor-row {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border: 1px solid #d5dce1;
+  border-radius: 0.35rem;
+}
+
+.editor-field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.action-row textarea {
+  min-height: 4rem;
+}
+
+footer {
+  max-width: 52rem;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+  font-size: 0.85rem;
+}
+
+footer a {
+  color: #526371;
 }

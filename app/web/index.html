@@ -10,8 +10,8 @@
 <body>
   <main>
     <h1>MeetScribe</h1>
-    <p>Transcribe a short recording locally and review the read-only draft. A secondary download can include anonymous speaker labels.</p>
-    <p class="notice">Use only synthetic or explicitly authorized, non-sensitive recordings. Speaker labels do not anonymize a recording.</p>
+    <p>Create a private draft meeting summary from a short recording. You can edit the summary before exporting it.</p>
+    <p class="notice">Use only synthetic or explicitly authorized, non-sensitive recordings. Drafts may contain errors and require human review.</p>
     <p>Mono or stereo WAV or MP3, up to 5 minutes and 100 MB. Stereo channels are mixed to mono; speech may be lost if the channels cancel each other. Results are temporary and are not restored on refresh or restart.</p>
 
     <form id="upload-form">
@@ -23,27 +23,54 @@
         <option value="it">Italian</option>
       </select>
       <div class="actions">
-        <button id="submit" type="submit">Transcribe</button>
-        <button id="cancel" type="button" disabled>Cancel job</button>
+        <button id="submit" type="submit">Create draft summary</button>
+        <button id="cancel" type="button" disabled>Cancel processing</button>
       </div>
     </form>
 
     <p id="status" role="status" aria-live="polite">Ready.</p>
     <p id="error" role="alert" hidden></p>
+    <button id="retry-minutes" type="button" hidden>Retry summary generation</button>
 
-    <section id="transcript" hidden aria-labelledby="transcript-title">
-      <h2 id="transcript-title">Draft transcript - unreviewed</h2>
-      <p>This transcript is read-only and may contain errors.</p>
-      <div id="segments"></div>
-      <p id="empty-transcript" hidden>No transcript segments are available.</p>
-      <button id="download" type="button">Download draft TXT</button>
-      <details id="speaker-attributed-download" hidden>
-        <summary>Optional speaker-attributed transcript download</summary>
-        <p>Speaker labels are anonymous and may be incorrect. Unknown speaker means no unique speaker was assigned.</p>
-        <button id="download-attributed" type="button">Download speaker-attributed TXT</button>
-      </details>
-      <p id="speaker-download-unavailable" role="status" hidden>Speaker attribution is unavailable, so no speaker-attributed download is offered.</p>
+    <section id="minutes" hidden aria-labelledby="minutes-title">
+      <h2 id="minutes-title">Meeting summary</h2>
+      <p class="notice">Review the draft carefully. Names, decisions and deadlines may be wrong. Only the summary is shown here; the original transcript is available separately.</p>
+      <p id="review-status" role="status"></p>
+
+      <label for="summary-text">Summary</label>
+      <textarea id="summary-text" rows="5"></textarea>
+
+      <section aria-labelledby="topics-title">
+        <h3 id="topics-title">Topics</h3>
+        <div id="topics" class="editor-list"></div>
+        <button id="add-topic" type="button">Add topic</button>
+      </section>
+
+      <section aria-labelledby="decisions-title">
+        <h3 id="decisions-title">Decisions</h3>
+        <div id="decisions" class="editor-list"></div>
+        <button id="add-decision" type="button">Add decision</button>
+      </section>
+
+      <section aria-labelledby="actions-title">
+        <h3 id="actions-title">Action items</h3>
+        <p>Enter a deadline date only when its wording is an unambiguous absolute date.</p>
+        <div id="action-items" class="editor-list"></div>
+        <button id="add-action" type="button">Add action item</button>
+      </section>
+
+      <div class="actions">
+        <button id="save-minutes" type="button" disabled>Save edits</button>
+        <button id="mark-reviewed" type="button" disabled>Mark as reviewed</button>
+        <button id="download-minutes-txt" type="button" disabled>Download TXT</button>
+        <button id="download-minutes-json" type="button" disabled>Download JSON</button>
+        <button id="regenerate-minutes" type="button" disabled>Regenerate summary</button>
+      </div>
     </section>
   </main>
+
+  <footer>
+    <a id="transcript-tools" href="/transcript-download" hidden>Optional transcript download</a>
+  </footer>
 </body>
 </html>
