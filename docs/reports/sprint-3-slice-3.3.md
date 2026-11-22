@@ -26,7 +26,7 @@ cannot supply them. Persistent revision tracking and reviewed status remain
 future work.
 
 **Later cross-segment extraction behavior (slice 3.4):** The full export-v1
-example in [plan.md](../plan.md) has one segment asking about a new document
+example in [plan.md](../../plan.md) has one segment asking about a new document
 draft and another saying, "I'll send it next Friday." With both segments in
 the prompt, the intended action description is `Send the new document draft`,
 not just `Send it`, and it cites both segment IDs. This is contextual model
@@ -79,7 +79,7 @@ identities.
   quality or transcript accuracy.
 
 Known ASR exact-text failures and the repeated-sentence XFAIL were not changed.
-See [test status](test-status.md) for their original results.
+See [test status](../status/test-status.md) for their original results.
 
 ## Changed files
 
@@ -91,7 +91,7 @@ See [test status](test-status.md) for their original results.
   contract, malformed/incomplete response, citation, owner, deadline and
   export cases.
 - `pyproject.toml` and `uv.lock` — direct Pydantic runtime pin.
-- `plan.md`, `README.md` and `docs/test-status.md` — current state and results.
+- `plan.md`, `README.md` and `docs/status/test-status.md` — current state and results.
 
 **Next:** Sprint 3.4 adds bounded summary extraction and prompt/runtime
 controls. The existing read-only transcript UI remains temporary until slice

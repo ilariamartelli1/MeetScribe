@@ -12,7 +12,7 @@ provides the unedited transcript with anonymous speaker labels for verification
 or debugging. Original uploaded audio will be saved for later download until
 deletion or expiry, but the browser will not play it. Persistent meeting
 storage, saved audio, manual deletion and seven-day expiry are not implemented.
-See [storage and scaling estimates](docs/storage-and-scaling.md) for longer
+See [storage and scaling estimates](docs/architecture/storage-and-scaling.md) for longer
 recordings and potential team use.
 
 ## Local setup
@@ -44,9 +44,11 @@ Unit tests live in `test/unit/`; Docker and GPU integration tests live in
 `test/integration/` and are opt-in. The CLion **Unit Tests** configuration can
 target `test/unit`, and **Integration Test** can target `test/integration` with
 `MEETSCRIBE_ASR_TESTS=1` and `MEETSCRIBE_DOCKER_TESTS=1`.
-See [test status](docs/test-status.md) for the latest recorded results and
-the configurations used. See the [security overview](docs/security.md) for
+See [test status](docs/status/test-status.md) for the latest recorded results and
+the configurations used. See the [security overview](docs/status/security.md) for
 network boundaries, data handling and deployment limitations.
+The [documentation index](docs/README.md) lists reports, architecture notes,
+investigations and status documents.
 
 The browser integration tests use Playwright with fake inference. Install Chromium
 with `uv run --locked python -m playwright install chromium` if no supported browser
@@ -169,8 +171,8 @@ run, and no generated draft or resource report was produced. The current
 fail-fast behavior is retained; a successful upload is not guaranteed to fit
 the summary context. Slice 3.7 remains incomplete. This is not an
 ASR/minutes-accuracy threshold or a VM-capacity test; see [minutes context
-scaling and limitations](docs/minutes-context-scaling.md) for current evidence
-and known limits, and [minutes retrieval options](docs/minutes-retrieval-options.md)
+scaling and limitations](docs/investigations/minutes-context-scaling.md) for current evidence
+and known limits, and [minutes retrieval options](docs/architecture/minutes-retrieval-options.md)
 for exploratory chunking and RAG tradeoffs.
 
 The GPU handoff test requires the provisioned ASR, Community-1 and Qwen3
@@ -209,7 +211,7 @@ one-hour lifetime, but their clocks start at different completion times.
 Minutes may become unavailable before their own lifetime ends if the
 transcription job expires first; this is inferred from the current code and
 has not yet been reproduced or covered by a regression test. Revisit when
-changing retention behavior; see the [slice 3.5 report](docs/sprint-3-slice-3.5.md).
+changing retention behavior; see the [slice 3.5 report](docs/reports/sprint-3-slice-3.5.md).
 The uploaded audio is removed after transcription;
 original-audio retention is planned for a later slice. Downloads are stored by
 the browser and are not deleted by the application. Use only synthetic or
@@ -285,16 +287,16 @@ failed gate also prints an alignment. English spoken dates can count as errors
 because NeMo may express digits as ordinals. The negation check is based on
 word alignment, not a complete semantic or grammatical analysis. Neither
 zero deletions nor the 3% threshold rules out substitutions or establishes quality on real
-meetings. See [the checkpoint report](docs/sprint-1-checkpoint.md) for results.
+meetings. See [the checkpoint report](docs/reports/sprint-1-checkpoint.md) for results.
 With the earlier experimental 25-second window, one observed run failed the
 deletion gate on the English MP3 and both Italian files; the Italian files also
 exceeded 3% WER.
-See [the window comparison](docs/asr-window-comparison.md) for controlled
+See [the window comparison](docs/investigations/asr-window-comparison.md) for controlled
 25-, 28- and 30-second results and their limitations.
 
 ## Timestamped transcription contract
 
-`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD, an explicit 30-second chunk length and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
+`TranscriptionService` in `app/asr_service.py` accepts a `Transcriber` implementation and returns immutable transcript segments in integer milliseconds on the original recording timeline. It accepts English (`en`, default) or Italian (`it`), rejects silent/empty results, and validates segment ordering and bounds. Model failures propagate to the caller. `FasterWhisperTranscriber` in `app/faster_whisper_asr.py` implements the contract using the pinned local model, integrated VAD, an explicit 30-second chunk length and transcription (not translation). It disables previous-text conditioning to reduce repetition observed in a long MP3; this may reduce cross-window consistency and does not guarantee accuracy. See [the timestamp investigation](docs/investigations/asr-timestamp-analysis.md). It verifies the model files against their manifest, requires an explicit `cuda` or `cpu` device, requests `int8_float16` on CUDA or `int8_float32` on CPU, and records model and inference settings with each result. CUDA does not silently fall back to CPU; call the adapter's `close()` when finished to unload the model.
 
 The opt-in adapter smoke test runs the production adapter in the actual app image without network access:
 
@@ -360,7 +362,7 @@ the application. The earlier CPU short-input run observed
 substantial system swap use. A separate nearly five-minute synthetic MP3
 completed in both CPU and GPU modes; adequate desktop headroom and 30-minute
 capacity remain unverified. The test does not measure speaker-label accuracy. See
-[the feasibility report](docs/sprint-2-diarization-feasibility.md) for results,
+[the feasibility report](docs/reports/sprint-2-diarization-feasibility.md) for results,
 attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR` and
 `MEETSCRIBE_DIARIZATION_MODEL_DIR`.
 

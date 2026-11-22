@@ -195,9 +195,9 @@ that checkpoint, including CUDA library versions and diarization dependencies.
 The current side-by-side comparison controls the environment more closely than
 the historical comparison; it does not isolate the effect of those earlier
 environment changes. The earlier results are in the
-[Sprint 1 checkpoint](sprint-1-checkpoint.md); a later 30-second run on the
+[Sprint 1 checkpoint](../reports/sprint-1-checkpoint.md); a later 30-second run on the
 diarization-enabled stack is documented in the
-[diarization feasibility report](sprint-2-diarization-feasibility.md).
+[diarization feasibility report](../reports/sprint-2-diarization-feasibility.md).
 
 The recordings use synthetic, single-speaker English and Italian voices. WER
 depends on normalization and token alignment; an aligned deletion is not always

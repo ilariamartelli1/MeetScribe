@@ -83,6 +83,6 @@ in slice 3.3.
 The implementation is in `app/minutes_extractor.py` and
 `app/model_manifests/summary_model.toml`, with fake-client coverage in
 `test/unit/test_minutes_extractor.py`. `README.md`, `plan.md` and
-`docs/test-status.md` record the current status. Slice 3.5 connects minutes
+`docs/status/test-status.md` record the current status. Slice 3.5 connects minutes
 generation to the application workflow and implements summary-only editing
 and export; the browser transcript display is scheduled for removal there.

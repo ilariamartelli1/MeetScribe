@@ -33,9 +33,9 @@ required before the over-budget English/Italian checkpoint can pass. The
 token value is a conservative bound, not a measured runtime token count;
 inference did not begin. No human correction time was measured.
 
-See [minutes context scaling and limitations](minutes-context-scaling.md) for
+See [minutes context scaling and limitations](../investigations/minutes-context-scaling.md) for
 the current extraction constraints and questions to revisit when resuming 3.7.
-See [minutes retrieval options](minutes-retrieval-options.md) for exploratory
+See [minutes retrieval options](../architecture/minutes-retrieval-options.md) for exploratory
 chunking and RAG tradeoffs; these do not change the current fail-fast decision.
 
 ## Validation
@@ -64,5 +64,5 @@ or longer-term VM capacity can be made from this run.
   resource-report harness.
 - `test/integration/test_minutes_quality.py` — opt-in offline Compose/GPU test.
 
-`README.md`, `plan.md` and `docs/test-status.md` record the command, failure and
+`README.md`, `plan.md` and `docs/status/test-status.md` record the command, failure and
 known limitation. All work remains uncommitted and unpushed.

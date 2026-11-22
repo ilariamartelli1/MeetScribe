@@ -62,7 +62,7 @@ this is evidence of a context-budget rejection, not an LLM quality failure.
 The Italian and two-voice diagnostic recordings were not reached. No actual
 generation token counts, draft-quality result, correction-time measurement
 or minutes-stage resource report came from that run. See the [slice 3.7
-report](sprint-3-slice-3.7.md) for the full outcome.
+report](../reports/sprint-3-slice-3.7.md) for the full outcome.
 
 This does not establish a fixed maximum meeting duration. Transcript token
 count varies with language, speaking rate, vocabulary and transcript content;
@@ -79,7 +79,7 @@ but still exceeded the minutes budget.
   Segments remain separate in the prompt, so context can span segment IDs, but
   awkward boundaries or attribution errors can make relationships harder to
   interpret. Known ASR failures remain documented in
-  [test status](test-status.md).
+  [test status](../status/test-status.md).
 - **Model reasoning:** If the full transcript fits, the LLM can still miss a
   long-distance reference, contradiction or later correction. The prompt asks
   for supported claims and citations, but reasoning quality is not guaranteed.
@@ -91,7 +91,7 @@ but still exceeded the minutes budget.
   baseline and 5.12 GiB at peak during a short synthetic handoff test. Most
   swap was already in use before that run. These figures are not attributed
   solely to MeetScribe and do not predict memory use for longer recordings;
-  see the [GPU handoff report](sprint-3-slice-3.2.md).
+  see the [GPU handoff report](../reports/sprint-3-slice-3.2.md).
 
 ## Follow-up for slice 3.7
 
@@ -104,9 +104,9 @@ should be handled; until then, retain fail-fast behavior and do not silently
 truncate, chunk or change models.
 
 For audio storage and processing-capacity estimates, see
-[storage and scaling](storage-and-scaling.md).
+[storage and scaling](../architecture/storage-and-scaling.md).
 
 Exploratory chunking, conventional RAG and GraphRAG options—with tradeoffs and
 a proposed evaluation sequence—are documented in
-[minutes retrieval options](minutes-retrieval-options.md). No strategy has
+[minutes retrieval options](../architecture/minutes-retrieval-options.md). No strategy has
 been selected or implemented.

@@ -105,7 +105,7 @@ the CLI command `docker exec <ollama-container-id> ollama ps` during Ollama
 stages to record whether Qwen is on the GPU.
 
 **Snapshot function and CLI command.** After the preliminary run, the test
-added [`memory_snapshot()`](../test/src/gpu_handoff_smoke.py#L50) for
+added [`memory_snapshot()`](../../test/src/gpu_handoff_smoke.py#L50) for
 point-in-time readings. Its only CLI command is
 `nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits`; it does not
 call Docker CLI. It reads `/proc/meminfo` and
@@ -171,7 +171,7 @@ single-run observations and do not establish a performance trend.
 
 The default suite does not run the remaining opt-in integration checks. The
 historical exact-text ASR failure and repeated-sentence XFAIL were not rerun or
-changed; see [test status](test-status.md).
+changed; see [test status](../status/test-status.md).
 
 ## Next
 

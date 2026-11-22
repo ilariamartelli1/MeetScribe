@@ -22,8 +22,8 @@ context is 4,096 tokens. In the first approved slice 3.7 run, a 297.305-second
 English recording had a conservative total context estimate of 11,322 tokens,
 so `MinutesContextBudgetError` stopped extraction before the model ran. This
 shows a context-budget limit, not a minutes-quality failure. See the
-[context-scaling report](minutes-context-scaling.md) and
-[slice 3.7 report](sprint-3-slice-3.7.md).
+[context-scaling report](../investigations/minutes-context-scaling.md) and
+[slice 3.7 report](../reports/sprint-3-slice-3.7.md).
 
 Retrieval could select or organize useful evidence for a request without
 putting the entire transcript in one prompt. But MeetScribe needs a complete

@@ -48,7 +48,7 @@ model artifact. The Ollama model reports an advertised context length of
 budget. The smoke used a 4,096-token context.
 
 The versioned pins and smoke settings are in
-[`app/model_manifests/summary_model.toml`](../app/model_manifests/summary_model.toml).
+[`app/model_manifests/summary_model.toml`](../../app/model_manifests/summary_model.toml).
 The compatibility rows record dependency and artifact pins; they do not prove
 that the full ASR/diarization/summary pipeline fits concurrently.
 

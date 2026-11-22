@@ -72,7 +72,7 @@ The known two-voice ASR exact-text mismatch (`Friday` → `Fragi`, `Elena` →
   `test/unit/test_browser_assets.py` and `test/integration/test_browser_flow.py`
   — source changes, stale citations, no-overwrite, failure, cancellation and
   browser coverage.
-- `README.md`, `plan.md` and `docs/test-status.md` — current behavior, contract
+- `README.md`, `plan.md` and `docs/status/test-status.md` — current behavior, contract
   semantics and validation.
 
 **Next:** slice 3.7 compares a real offline audio-to-minutes run against

@@ -77,7 +77,7 @@ establish transcription or minutes accuracy on real meetings.
   `test/integration/test_browser_flow.py` — manager, API, privacy, rendering,
   export and browser-flow coverage.
 
-`README.md`, `plan.md`, `docs/test-status.md` and
-`docs/storage-and-scaling.md` now describe the current temporary workflow and
+`README.md`, `plan.md`, `docs/status/test-status.md` and
+`docs/architecture/storage-and-scaling.md` now describe the current temporary workflow and
 its limits. **Next: slice 3.6, summary regeneration and stale-source
 handling.**

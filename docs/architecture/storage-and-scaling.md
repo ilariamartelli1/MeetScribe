@@ -2,7 +2,7 @@
 
 This is a planning estimate, not a measured capacity or a commitment to a
 particular deployment. Persistent meetings, storage quotas, deletion and
-multiuser access are not implemented. See [the delivery plan](../plan.md)
+multiuser access are not implemented. See [the delivery plan](../../plan.md)
 for current limits and implementation slices.
 
 ## Intended behavior
@@ -73,7 +73,7 @@ peaked at 3.36 GiB of 6.0 GiB, and host memory use peaked at 11.1 GiB of
 15.3 GiB; swap peaked at 5.12 GiB of 8.0 GiB, from a 4.28 GiB baseline. All
 stages completed without OOM or GPU offload. This is a single synthetic-audio
 measurement, not a capacity guarantee, a two-hour throughput result, or a
-prediction for the future VM; see the [slice 3.2 report](sprint-3-slice-3.2.md).
+prediction for the future VM; see the [slice 3.2 report](../reports/sprint-3-slice-3.2.md).
 
 For illustration, with a hypothetical **50 GB quota for meeting originals
 alone**, 20 daily two-hour 44.1 kHz stereo WAV files add about 25.4 GB per
