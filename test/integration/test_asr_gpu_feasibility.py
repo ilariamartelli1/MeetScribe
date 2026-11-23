@@ -11,9 +11,18 @@ from pathlib import Path
 
 import pytest
 
+from app.infrastructure.config import (
+    ASR_MODEL_DIR_ENV,
+    ASR_MODEL_MANIFEST_ENV,
+    DEFAULT_ASR_MODEL_DIR,
+    DEFAULT_ASR_MODEL_MANIFEST,
+)
+from test.integration.asr_model_config import asr_model_mount_args
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PATHS = {
-    "MEETSCRIBE_MODEL_DIR": PROJECT_ROOT / "models/faster-whisper-large-v3-turbo",
+    ASR_MODEL_DIR_ENV: PROJECT_ROOT / DEFAULT_ASR_MODEL_DIR,
+    ASR_MODEL_MANIFEST_ENV: DEFAULT_ASR_MODEL_MANIFEST,
     "MEETSCRIBE_TEST_WAV": PROJECT_ROOT / "test/data/smoke/synthetic-meeting.wav",
     "MEETSCRIBE_TEST_MP3": PROJECT_ROOT / "test/data/smoke/synthetic-meeting.mp3",
 }
@@ -44,8 +53,7 @@ def test_offline_gpu_inference(asr_image: str) -> None:
             "all",
             "--mount",
             f"type=bind,src={PROJECT_ROOT / 'test/src'},dst=/checks,readonly",
-            "--mount",
-            f"type=bind,src={paths['MEETSCRIBE_MODEL_DIR']},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={paths['MEETSCRIBE_TEST_WAV']},dst=/audio/sample.wav,readonly",
             "--mount",

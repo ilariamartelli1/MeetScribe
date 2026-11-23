@@ -10,6 +10,7 @@ from typing import Callable
 import pytest
 from nemo_text_processing.text_normalization.normalize import Normalizer  # type: ignore[import-untyped]
 
+from test.integration.asr_model_config import asr_model_mount_args
 from test.src.asr_evaluation import (
     evaluate,
     quality_failures,
@@ -27,12 +28,6 @@ MAX_WER = 0.03
     reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
 )
 def test_checkpoint_wer_and_negations(asr_image: str, tmp_path: Path) -> None:
-    model_dir = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR",
-            str(ROOT / "models/faster-whisper-large-v3-turbo"),
-        )
-    ).resolve(strict=True)
     references = {}
     for language, folder in (("en", "english"), ("it", "italian")):
         base = CHECKPOINT / folder / f"meeting-{language}"
@@ -58,8 +53,7 @@ def test_checkpoint_wer_and_negations(asr_image: str, tmp_path: Path) -> None:
             "none",
             "--gpus",
             "all",
-            "--mount",
-            f"type=bind,src={model_dir},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={CHECKPOINT},dst=/audio,readonly",
             "--mount",

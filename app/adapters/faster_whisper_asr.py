@@ -15,7 +15,12 @@ from app.core.asr_contract import (
     Transcript,
     TranscriptSegment,
 )
-from app.infrastructure.model_integrity import MANIFEST_DIR, load_manifest, verify_model
+from app.infrastructure.model_integrity import (
+    MANIFEST_DIR,
+    ModelManifest,
+    load_manifest,
+    verify_model,
+)
 
 MODEL_MANIFEST = load_manifest(MANIFEST_DIR / "faster_whisper.toml")
 SAMPLE_RATE = 16000
@@ -37,17 +42,24 @@ class FasterWhisperProvenance(ModelProvenance):
 
 
 class FasterWhisperTranscriber:
-    def __init__(self, model_dir: Path, device: Device) -> None:
+    def __init__(
+        self,
+        model_dir: Path,
+        device: Device,
+        model_manifest: ModelManifest | None = None,
+    ) -> None:
         if device not in (CPU_DEVICE, CUDA_DEVICE):
             raise ValueError("Device must be explicitly set to 'cuda' or 'cpu'.")
+        if model_manifest is None:
+            model_manifest = MODEL_MANIFEST
         try:
-            model_sha256 = MODEL_MANIFEST.files["model.bin"]
+            model_sha256 = model_manifest.files["model.bin"]
         except KeyError as exc:
             raise ValueError(
-                f"{MODEL_MANIFEST.name} manifest must pin model.bin."
+                f"{model_manifest.name} manifest must pin model.bin."
             ) from exc
         model_dir = model_dir.resolve()
-        verify_model(model_dir, MODEL_MANIFEST)
+        verify_model(model_dir, model_manifest)
         if device == CUDA_DEVICE and ctranslate2.get_cuda_device_count() < 1:
             raise RuntimeError("CUDA GPU unavailable; CPU fallback is disabled.")
 
@@ -69,8 +81,8 @@ class FasterWhisperTranscriber:
         self._provenance = FasterWhisperProvenance(
             adapter="faster-whisper",
             adapter_version=version("faster-whisper"),
-            model_id=MODEL_MANIFEST.model_id,
-            model_revision=MODEL_MANIFEST.revision,
+            model_id=model_manifest.model_id,
+            model_revision=model_manifest.revision,
             model_sha256=model_sha256,
             device=device,
             compute_type=compute_type,

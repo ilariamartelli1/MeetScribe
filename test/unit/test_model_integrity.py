@@ -49,7 +49,10 @@ def test_optional_files_are_checked_when_present(tmp_path: Path) -> None:
     verify_model(tmp_path, manifest)
 
 
-@pytest.mark.parametrize("filename", ["community1.toml", "faster_whisper.toml"])
+@pytest.mark.parametrize(
+    "filename",
+    ["community1.toml", "faster_whisper.toml", "faster_whisper_turbo.toml"],
+)
 def test_versioned_manifests_are_valid(filename: str) -> None:
     manifest = load_manifest(MANIFEST_DIR / filename)
     assert manifest.name

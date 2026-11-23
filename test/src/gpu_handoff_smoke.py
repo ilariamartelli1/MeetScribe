@@ -14,13 +14,12 @@ import httpx
 
 from app.core.asr_contract import CUDA_DEVICE, Transcript
 from app.core.asr_service import TranscriptionService
+from app.adapters.model_factories import create_faster_whisper
 from app.adapters.community1_diarizer import Community1Diarizer
 from app.core.diarization_service import DiarizationService
-from app.adapters.faster_whisper_asr import (
-    FasterWhisperProvenance,
-    FasterWhisperTranscriber,
-)
+from app.adapters.faster_whisper_asr import FasterWhisperProvenance
 from app.infrastructure.inference_gate import InferenceGate
+from app.infrastructure.config import Settings
 from app.adapters.ollama_client import (
     MODEL_NAME,
     OLLAMA_BASE_URL,
@@ -30,7 +29,7 @@ from app.adapters.ollama_client import (
 )
 from app.core.speaker_alignment import align_speakers
 
-ASR_MODEL_DIR = Path("/app/models/faster-whisper-large-v3-turbo")
+ASR_MODEL_DIR = Settings().asr_model_dir
 DIARIZATION_MODEL_DIR = Path("/app/models/pyannote-community-1")
 AUDIO_PATH = Path("/audio/two-voices.wav")
 CONTEXT_SIZE = 4096
@@ -84,7 +83,7 @@ def run_asr_stage(
 ) -> tuple[Transcript, dict[str, object], dict[str, float]]:
     set_stage(stage)
     started = time.monotonic()
-    transcriber = FasterWhisperTranscriber(ASR_MODEL_DIR, CUDA_DEVICE)
+    transcriber = create_faster_whisper(ASR_MODEL_DIR, CUDA_DEVICE)
     try:
         transcript = TranscriptionService(transcriber).transcribe(AUDIO_PATH, "en")
         if not transcript.segments:

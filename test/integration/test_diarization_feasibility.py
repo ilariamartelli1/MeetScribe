@@ -10,6 +10,7 @@ import pytest
 from app.core.asr_contract import CUDA_DEVICE
 from app.adapters.community1_diarizer import MODEL_MANIFEST
 from app.infrastructure.model_integrity import verify_model
+from test.integration.asr_model_config import asr_model_mount_args
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTAINER_MEMORY_LIMIT = "6g"
@@ -30,11 +31,6 @@ EXPECTED_JOB_FORMATS = ("wav", "mp3", "wav", "mp3")
 def test_offline_asr_then_diarization(
     asr_image: str, device: str, format_override: str | None
 ) -> None:
-    asr_model = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR", str(ROOT / "models/faster-whisper-large-v3-turbo")
-        )
-    ).resolve(strict=True)
     diarization_model = Path(
         os.environ.get(
             "MEETSCRIBE_DIARIZATION_MODEL_DIR",
@@ -54,8 +50,7 @@ def test_offline_asr_then_diarization(
             CONTAINER_MEMORY_LIMIT,
             "--cpus",
             CONTAINER_CPU_LIMIT,
-            "--mount",
-            f"type=bind,src={asr_model},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={diarization_model},dst=/diarization,readonly",
             "--mount",

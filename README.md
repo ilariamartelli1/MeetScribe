@@ -263,17 +263,27 @@ explicitly authorized, non-sensitive recordings.
 
 The app image uses faster-whisper 1.2.1, CTranslate2 4.8.5, PyAV 18.1.0, NVIDIA cuBLAS 12.8.4.1 and cuDNN 9.10.2.21. PyAV is pinned below 19 because faster-whisper 1.2.1 uses an `av.open` argument removed in PyAV 19. The CUDA libraries are installed in the app image, not required for the local CPU unit tests.
 
-Provision the public [CTranslate2-converted large-v3-turbo model](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2) separately. This downloads approximately 1.6 GB into the gitignored `models/` directory; it does not require a token:
+Provision the public [CTranslate2-converted full large-v3 model](https://huggingface.co/Systran/faster-whisper-large-v3) separately. Its weights are approximately 3.1 GB in the gitignored `models/` directory; the download does not require a token:
 
 ```sh
 HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_IMPLICIT_TOKEN=1 \
-  uv run --locked hf download deepdml/faster-whisper-large-v3-turbo-ct2 \
+  uv run --locked hf download Systran/faster-whisper-large-v3 \
   config.json model.bin tokenizer.json preprocessor_config.json vocabulary.json \
-  --revision 4df90f75321148c3a29a9e2351b7ddf8f5b115a8 \
-  --local-dir models/faster-whisper-large-v3-turbo
+  --revision edaa852ec7e145841d8ffdb056a99866b5f0a478 \
+  --local-dir models/faster-whisper-large-v3
 ```
 
-The model card identifies the converted model as MIT-licensed. The versioned manifest at `app/model_manifests/faster_whisper.toml` pins its revision and the SHA-256 of every required artifact; the optional `vocabulary.json` is checked when present. The shared verifier checks them before loading. The faster-whisper and CTranslate2 projects are MIT-licensed, PyAV is BSD-licensed, and NVIDIA CUDA libraries have NVIDIA license terms. Review licenses before distribution.
+The versioned `app/model_manifests/faster_whisper.toml` manifest pins this model revision and the SHA-256 of every required artifact; its optional `vocabulary.json` is checked when present. The shared verifier checks the selected manifest before loading. The app defaults to this full large-v3 model. `app/model_manifests/faster_whisper_turbo.toml` retains the previously used large-v3-turbo model as an alternative.
+
+The Faster-Whisper model directory and manifest are selected together with `MEETSCRIBE_ASR_MODEL_DIR` and `MEETSCRIBE_ASR_MODEL_MANIFEST`. In Docker Compose, `./models` is mounted at `/app/models`, so select another provisioned CTranslate2-compatible model and its matching manifest like this:
+
+```sh
+MEETSCRIBE_ASR_MODEL_DIR=models/faster-whisper-large-v3-turbo \
+MEETSCRIBE_ASR_MODEL_MANIFEST=app/model_manifests/faster_whisper_turbo.toml \
+  docker compose up --build
+```
+
+For another Faster-Whisper/CTranslate2-compatible Whisper model, provision its artifacts under `models/` and add a versioned manifest under `app/model_manifests/`. The selected manifest records the model ID, immutable revision and artifact hashes; a mismatch fails verification before inference. This configuration does not make an unrelated ASR runtime compatible by path alone; a different runtime needs its own adapter. The model card identifies the converted weights as MIT-licensed. The faster-whisper and CTranslate2 projects are MIT-licensed, PyAV is BSD-licensed, and NVIDIA CUDA libraries have NVIDIA license terms. Review licenses before distribution.
 
 The repository includes a short synthetic English sample in WAV and MP3 at `test/data/smoke/`. It says: "This is a test meeting. The project is on schedule." It was regenerated locally with the Flite `cmu_us_kal` voice using the same text and method as the original temporary sample; the MP3 was encoded from the WAV using PyAV. The original files were deleted, so byte-for-byte identity with the original run cannot be verified.
 
@@ -300,7 +310,7 @@ MEETSCRIBE_ASR_TESTS=1 \
   uv run --locked python -m pytest -q -s test/integration/test_asr_gpu_feasibility.py
 ```
 
-The test defaults to the provisioned model path and versioned fixtures. To use different local paths, set `MEETSCRIBE_MODEL_DIR`, `MEETSCRIBE_TEST_WAV`, or `MEETSCRIBE_TEST_MP3` to absolute paths. Use only synthetic or explicitly authorized non-sensitive audio; never commit meeting recordings. The container runs as a non-root user and must be able to read the mounted files.
+The test defaults to the configured model path and versioned fixtures. To use different local paths, set `MEETSCRIBE_ASR_MODEL_DIR`, `MEETSCRIBE_ASR_MODEL_MANIFEST`, `MEETSCRIBE_TEST_WAV`, or `MEETSCRIBE_TEST_MP3` to absolute paths. Use only synthetic or explicitly authorized non-sensitive audio; never commit meeting recordings. The container runs as a non-root user and must be able to read the mounted files.
 
 ASR integration tests automatically build the app image once per pytest session, including when started from CLion. The build can require network access if dependencies are not cached. Inference runs with a disabled network and read-only mounts for the test tooling in `test/src/`, the model and the audio. The tooling is not included in the image. The feasibility test explicitly requests CUDA `int8_float16` and runs two jobs that each load the model, decode and transcribe both formats, then unload it. It reports timings and memory without printing transcript text. GPU memory is summed across visible GPUs and includes other processes; host usage is estimated from `/proc/meminfo`, while container usage comes from cgroup v2. Peaks are sampled approximately every 0.2 seconds, so brief spikes may be missed. The test requires an NVIDIA GPU and Linux cgroup v2, and does not establish transcription quality or long-recording capacity.
 
@@ -310,7 +320,7 @@ Run a separate offline correctness check against the versioned WAV and MP3:
 MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q test/integration/test_asr_accuracy.py
 ```
 
-This compares each transcript with the known sentence, ignoring capitalization, punctuation and whitespace. On a mismatch it reports the expected and actual text. It always uses the versioned synthetic audio, though `MEETSCRIBE_MODEL_DIR` can select a different local copy of the pinned model. Passing one synthetic sentence does not establish overall transcription quality.
+This compares each transcript with the known sentence, ignoring capitalization, punctuation and whitespace. On a mismatch it reports the expected and actual text. It always uses the versioned synthetic audio; `MEETSCRIBE_ASR_MODEL_DIR` and `MEETSCRIBE_ASR_MODEL_MANIFEST` select the local model and its manifest. Passing one synthetic sentence does not establish overall transcription quality.
 
 To evaluate all four longer checkpoint recordings against the user-validated
 scripts using NeMo text normalization and JiWER:
@@ -405,7 +415,9 @@ substantial system swap use. A separate nearly five-minute synthetic MP3
 completed in both CPU and GPU modes; adequate desktop headroom and 30-minute
 capacity remain unverified. The test does not measure speaker-label accuracy. See
 [the feasibility report](docs/reports/sprint-2-diarization-feasibility.md) for results,
-attribution and limitations. Paths can be overridden with `MEETSCRIBE_MODEL_DIR` and
+attribution and limitations. ASR paths can be overridden with
+`MEETSCRIBE_ASR_MODEL_DIR` and `MEETSCRIBE_ASR_MODEL_MANIFEST`; diarization can be
+overridden with
 `MEETSCRIBE_DIARIZATION_MODEL_DIR`.
 
 ## Speaker-turn adapter

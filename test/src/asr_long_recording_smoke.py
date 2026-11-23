@@ -3,15 +3,15 @@
 import json
 from pathlib import Path
 
+from app.adapters.model_factories import create_faster_whisper
 from app.core.asr_service import TranscriptionService
 from app.adapters.faster_whisper_asr import (
     FasterWhisperProvenance,
-    FasterWhisperTranscriber,
 )
 
 
 def main() -> None:
-    transcriber = FasterWhisperTranscriber(Path("/model"), "cuda")
+    transcriber = create_faster_whisper(Path("/model"), "cuda")
     try:
         transcript = TranscriptionService(transcriber).transcribe(
             Path("/audio/sample.mp3")

@@ -20,6 +20,7 @@ from app.infrastructure.inference_gate import InferenceGate
 from app.adapters.ollama_client import OllamaClient
 from app.adapters.ollama_minutes import create_ollama_minutes_extractor
 from app.adapters.model_factories import create_community1, create_faster_whisper
+from app.infrastructure.model_integrity import load_manifest
 from app.core.meeting_minutes import (
     MeetingMinutesCoordinator,
     MinutesCoordinatorClosedError,
@@ -101,12 +102,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     inference_gate = InferenceGate()
     app.state.inference_gate = inference_gate
     try:
+        asr_model_manifest = load_manifest(settings.asr_model_manifest)
         app.state.coordinator = TranscriptionCoordinator(
             SpeakerAttributedJob(
                 partial(
                     create_faster_whisper,
-                    Path("models/faster-whisper-large-v3-turbo"),
+                    settings.asr_model_dir,
                     device,
+                    asr_model_manifest,
                 ),
                 partial(create_community1, Path("models/pyannote-community-1"), device),
             ),

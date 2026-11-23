@@ -119,6 +119,36 @@ def test_cpu_is_explicit_and_silence_is_rejected(
     model.transcribe.assert_not_called()
 
 
+def test_selected_model_manifest_controls_verification_and_provenance(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model_file = model_dir / "model.bin"
+    model_file.write_bytes(b"selected model")
+    manifest = replace(
+        adapter.MODEL_MANIFEST,
+        name="Selected model",
+        model_id="example/faster-whisper-compatible",
+        revision="selected-revision",
+        files={
+            **adapter.MODEL_MANIFEST.files,
+            "model.bin": hashlib.sha256(b"selected model").hexdigest(),
+        },
+    )
+    model = Mock()
+    model.model.device = "cpu"
+    model.model.compute_type = "int8_float32"
+    monkeypatch.setattr(adapter, "WhisperModel", lambda *args, **kwargs: model)
+    monkeypatch.setattr(adapter, "decode_audio", lambda *args, **kwargs: [])
+
+    transcript = adapter.FasterWhisperTranscriber(
+        model_dir, "cpu", manifest
+    ).transcribe(Path("silent.wav"), "en")
+
+    assert transcript.provenance.model_id == manifest.model_id
+    assert transcript.provenance.model_revision == manifest.revision
+    assert transcript.provenance.model_sha256 == manifest.files["model.bin"]
+
+
 def test_cpu_transcription_records_effective_compute_type(
     model_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

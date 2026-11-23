@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.asr_model_config import asr_model_mount_args
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RECORDING = PROJECT_ROOT / "test/data/checkpoint/english/meeting-en.mp3"
 FINAL_SPEECH_INTERVAL_MS = (292_155, 296_955)
@@ -42,12 +44,6 @@ def test_five_minute_mp3_has_bounded_timestamps_and_final_speech(
     asr_image: str,
 ) -> None:
     recording = RECORDING.resolve(strict=True)
-    model_dir = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR",
-            str(PROJECT_ROOT / "models/faster-whisper-large-v3-turbo"),
-        )
-    ).resolve(strict=True)
     result = subprocess.run(
         [
             "docker",
@@ -57,8 +53,7 @@ def test_five_minute_mp3_has_bounded_timestamps_and_final_speech(
             "none",
             "--gpus",
             "all",
-            "--mount",
-            f"type=bind,src={model_dir},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={recording},dst=/audio/sample.mp3,readonly",
             "--mount",

@@ -3,11 +3,14 @@ services:
     build: .
     environment:
       MEETSCRIBE_DEVICE: cuda
+      MEETSCRIBE_ASR_MODEL_DIR: ${MEETSCRIBE_ASR_MODEL_DIR:-models/faster-whisper-large-v3}
+      MEETSCRIBE_ASR_MODEL_MANIFEST: ${MEETSCRIBE_ASR_MODEL_MANIFEST:-app/model_manifests/faster_whisper.toml}
     gpus: all
     ports:
       - "127.0.0.1:${MEETSCRIBE_PORT:-8000}:8000"
     volumes:
       - ./models:/app/models:ro
+      - ./app/model_manifests:/app/app/model_manifests:ro
     networks:
       - default
       - inference

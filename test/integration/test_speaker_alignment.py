@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.asr_model_config import asr_model_mount_args
 from test.integration.test_asr_accuracy import normalize_text
 from test.src.audio_fixtures import VOICE_INTERVALS_MS
 
@@ -57,11 +58,6 @@ def interval_speaker(
 
 @pytest.fixture(scope="module")
 def attributed_job_report(asr_image: str) -> str:
-    asr_model = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR", str(ROOT / "models/faster-whisper-large-v3-turbo")
-        )
-    ).resolve(strict=True)
     diarization_model = Path(
         os.environ.get(
             "MEETSCRIBE_DIARIZATION_MODEL_DIR",
@@ -81,8 +77,7 @@ def attributed_job_report(asr_image: str) -> str:
             "6g",
             "--cpus",
             "4",
-            "--mount",
-            f"type=bind,src={asr_model},dst=/asr,readonly",
+            *asr_model_mount_args("/asr"),
             "--mount",
             f"type=bind,src={diarization_model},dst=/diarization,readonly",
             "--mount",

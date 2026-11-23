@@ -6,11 +6,11 @@ import wave
 from dataclasses import asdict
 from pathlib import Path
 
+from app.adapters.model_factories import create_faster_whisper
 from app.core.asr_contract import Language
 from app.core.asr_service import NoSpeechError, TranscriptionService
-from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
 
-transcriber = FasterWhisperTranscriber(Path("/model"), "cuda")
+transcriber = create_faster_whisper(Path("/model"), "cuda")
 service = TranscriptionService(transcriber)
 reports: dict[str, object] = {}
 samples: tuple[tuple[Language, str], ...] = (

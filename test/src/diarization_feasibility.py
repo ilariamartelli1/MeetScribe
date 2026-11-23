@@ -15,8 +15,8 @@ from faster_whisper.audio import decode_audio  # type: ignore[import-untyped]
 
 from app.core.asr_contract import CPU_DEVICE, CUDA_DEVICE, Device
 from app.core.asr_service import TranscriptionService
+from app.adapters.model_factories import create_faster_whisper
 from app.adapters.community1_diarizer import MODEL_MANIFEST
-from app.adapters.faster_whisper_asr import FasterWhisperTranscriber
 from app.infrastructure.model_integrity import verify_model
 
 ASR_MODEL_DIR = Path("/model")
@@ -110,7 +110,7 @@ def main(device: Device, formats: tuple[str, ...], runs_per_format: int) -> None
                 del decoded
                 stage = f"{repeat}-{extension}-asr"
                 started = time.monotonic()
-                transcriber = FasterWhisperTranscriber(ASR_MODEL_DIR, device)
+                transcriber = create_faster_whisper(ASR_MODEL_DIR, device)
                 try:
                     transcript = TranscriptionService(transcriber).transcribe(
                         audio, ASR_LANGUAGE

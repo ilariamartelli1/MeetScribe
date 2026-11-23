@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.asr_model_config import asr_model_mount_args
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -19,12 +21,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
     reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
 )
 def test_real_model_runs_in_an_owned_child(asr_image: str) -> None:
-    model_dir = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR",
-            str(PROJECT_ROOT / "models/faster-whisper-large-v3-turbo"),
-        )
-    ).resolve(strict=True)
     result = subprocess.run(
         [
             "docker",
@@ -34,8 +30,7 @@ def test_real_model_runs_in_an_owned_child(asr_image: str) -> None:
             "none",
             "--gpus",
             "all",
-            "--mount",
-            f"type=bind,src={model_dir},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={PROJECT_ROOT / 'test/data/smoke'},dst=/audio,readonly",
             "--mount",

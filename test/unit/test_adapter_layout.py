@@ -27,6 +27,9 @@ def test_adapters_use_the_shared_model_manifests() -> None:
     assert faster_whisper_asr.MODEL_MANIFEST == load_manifest(
         MANIFEST_DIR / "faster_whisper.toml"
     )
+    assert (
+        faster_whisper_asr.MODEL_MANIFEST.model_id == "Systran/faster-whisper-large-v3"
+    )
     assert community1_diarizer.MODEL_MANIFEST == load_manifest(
         MANIFEST_DIR / "community1.toml"
     )

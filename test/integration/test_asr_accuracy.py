@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from test.integration.asr_model_config import asr_model_mount_args
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_DIR = PROJECT_ROOT / "test/data/smoke"
 
@@ -51,12 +53,6 @@ def normalize_text(text: str) -> str:
     reason="Set MEETSCRIBE_ASR_TESTS=1 to run the offline GPU integration test.",
 )
 def test_synthetic_speech_transcription(asr_image: str) -> None:
-    model_dir = Path(
-        os.environ.get(
-            "MEETSCRIBE_MODEL_DIR",
-            str(PROJECT_ROOT / "models/faster-whisper-large-v3-turbo"),
-        )
-    ).resolve(strict=True)
     sample_dir = SAMPLE_DIR.resolve(strict=True)
     result = subprocess.run(
         [
@@ -71,8 +67,7 @@ def test_synthetic_speech_transcription(asr_image: str) -> None:
             f"type=bind,src={PROJECT_ROOT / 'test/src'},dst=/checks,readonly",
             "--env",
             "PYTHONPATH=/app:/checks",
-            "--mount",
-            f"type=bind,src={model_dir},dst=/model,readonly",
+            *asr_model_mount_args("/model"),
             "--mount",
             f"type=bind,src={sample_dir},dst=/audio,readonly",
             "--entrypoint",
