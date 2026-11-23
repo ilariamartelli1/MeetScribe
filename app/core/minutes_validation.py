@@ -3,9 +3,11 @@
 import re
 from collections.abc import Sequence
 from datetime import date
+from difflib import SequenceMatcher
 
 from pydantic import ValidationError
 
+from app.core.asr_contract import Language
 from app.core.minutes_contract import (
     MeetingExportV1,
     MinutesActionItem,
@@ -32,6 +34,163 @@ class MinutesEvidenceError(ValueError):
 
 class InvalidTranscriptEvidenceError(ValueError):
     """The transcript and speaker attributions cannot form an export contract."""
+
+
+_WEEKDAYS: dict[Language, tuple[str, ...]] = {
+    "en": (
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ),
+    "it": (
+        "lunedì",
+        "martedì",
+        "mercoledì",
+        "giovedì",
+        "venerdì",
+        "sabato",
+        "domenica",
+    ),
+}
+
+
+def find_weekday_deadline_corrections(
+    text: str, language: Language
+) -> tuple[tuple[str, str], ...]:
+    if language == "en":
+        time_phrase = re.compile(
+            r"\b(?:on|by|before|until)\s+"
+            r"(?P<word>[A-Za-zÀ-ÖØ-öø-ÿ]+)\b",
+            re.IGNORECASE,
+        )
+    else:
+        time_phrase = re.compile(
+            r"\b(?:entro|per)\s+(?P<word>[A-Za-zÀ-ÖØ-öø-ÿ]+)\b",
+            re.IGNORECASE,
+        )
+
+    corrections: list[tuple[str, str]] = []
+    for match in time_phrase.finditer(text):
+        original = match.group("word")
+        if original.casefold() in {
+            weekday.casefold() for weekday in _WEEKDAYS[language]
+        } or is_named_term(text, original, language):
+            continue
+        candidate = _unique_weekday_candidate(original, language)
+        if candidate is None:
+            continue
+
+        source_phrase = match.group(0)
+        word_offset = match.start("word") - match.start()
+        corrected_phrase = f"{source_phrase[:word_offset]}{candidate}"
+        correction = (source_phrase, corrected_phrase)
+        if correction not in corrections:
+            corrections.append(correction)
+    return tuple(corrections)
+
+
+def has_named_timed_term(
+    segments: Sequence[TranscriptSegmentV1],
+    deadline_text: str,
+    language: Language,
+) -> bool:
+    if language == "en":
+        time_phrase = re.compile(
+            r"\b(?:on|by|before|until)\s+"
+            r"(?P<word>[A-Za-zÀ-ÖØ-öø-ÿ]+)\b",
+            re.IGNORECASE,
+        )
+    else:
+        time_phrase = re.compile(
+            r"\b(?:entro|per)\s+(?P<word>[A-Za-zÀ-ÖØ-öø-ÿ]+)\b",
+            re.IGNORECASE,
+        )
+    normalized_deadline = _normalize_text(deadline_text)
+    for segment in segments:
+        for match in time_phrase.finditer(segment.text):
+            word = match.group("word")
+            if not is_named_term(segment.text, word, language):
+                continue
+            possible_terms = (word, _unique_weekday_candidate(word, language))
+            if any(
+                term is not None
+                and re.search(
+                    rf"(?<!\w){re.escape(term.casefold())}(?!\w)",
+                    normalized_deadline,
+                )
+                for term in possible_terms
+            ):
+                return True
+    return False
+
+
+def _unique_weekday_candidate(word: str, language: Language) -> str | None:
+    ranked = sorted(
+        (
+            (
+                SequenceMatcher(None, word.casefold(), weekday.casefold()).ratio(),
+                weekday,
+            )
+            for weekday in _WEEKDAYS[language]
+        ),
+        reverse=True,
+    )
+    best_score, candidate = ranked[0]
+    return (
+        candidate if best_score >= 0.5 and best_score - ranked[1][0] >= 0.15 else None
+    )
+
+
+def is_named_term(text: str, word: str, language: Language) -> bool:
+    word_pattern = rf"\b{re.escape(word)}\b"
+    patterns: tuple[str, ...] = (
+        rf"\b(?:named|called)\s+{word_pattern}",
+        rf"\b(?:feature|product|project|service)\b.{{0,30}}"
+        rf"\b(?:named|called)\s+{word_pattern}",
+        rf"{word_pattern}.{{0,30}}\b"
+        rf"(?:is\s+)?(?:the\s+)?(?:name|feature|product|project|service)\b",
+        rf"\bname\s+of\b.{{0,30}}{word_pattern}",
+        rf"{word_pattern}\s+\b(?:feature|product|project|service)\b",
+    )
+    if language == "it":
+        patterns += (
+            rf"\b(?:chiamat[oa]|denominat[oa])\s+{word_pattern}",
+            rf"\b(?:funzione|funzionalità|prodotto|progetto|servizio)\b"
+            rf".{{0,30}}\b(?:chiamat[oa]|denominat[oa])\s+{word_pattern}",
+            rf"{word_pattern}.{{0,30}}\b(?:è\s+)?(?:il\s+|la\s+)?"
+            rf"(?:nome|funzione|funzionalità|prodotto|progetto|servizio)\b",
+            rf"\b(?:nome|funzione|funzionalità|prodotto|progetto|servizio)\b"
+            rf".{{0,30}}{word_pattern}",
+            rf"{word_pattern}\s+\b(?:funzione|funzionalità|prodotto|progetto|servizio)\b",
+        )
+    return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+
+
+def extract_explicit_deadline(text: str, language: Language) -> str | None:
+    weekdays = "|".join(re.escape(day) for day in _WEEKDAYS[language])
+    if language == "en":
+        pattern = re.compile(
+            rf"\b(?:by|before|until|no later than|due(?:\s+on)?|on)\s+"
+            rf"(?P<deadline>(?:(?:next|this)\s+)?(?:{weekdays})|"
+            r"today|tomorrow|tonight|end of (?:the )?week)\b",
+            re.IGNORECASE,
+        )
+    else:
+        pattern = re.compile(
+            rf"\b(?:entro|per|non oltre)\s+(?P<deadline>"
+            rf"(?:(?:prossimo|prossima|questo|questa)\s+)?(?:{weekdays})|"
+            r"oggi|domani|stasera|fine settimana)\b",
+            re.IGNORECASE,
+        )
+    for match in pattern.finditer(text):
+        temporal_word = match.group("deadline").split()[-1]
+        if not is_named_term(text, temporal_word, language):
+            return match.group(0)
+    return None
 
 
 def parse_minutes_response(response: str) -> MinutesDraft:
@@ -112,7 +271,10 @@ def validate_minutes_citations(
 
 
 def validate_minutes_evidence(
-    minutes: MinutesDraft, segments: Sequence[TranscriptSegmentV1]
+    minutes: MinutesDraft,
+    segments: Sequence[TranscriptSegmentV1],
+    *,
+    language: Language | None = None,
 ) -> None:
     validate_minutes_completeness(minutes)
     validate_minutes_dates(minutes)
@@ -175,7 +337,11 @@ def validate_minutes_evidence(
                 )
 
         if item.deadline_text is not None:
-            if _normalize_text(item.deadline_text) not in _normalize_text(cited_text):
+            if _normalize_text(item.deadline_text) not in _normalize_text(
+                cited_text
+            ) and not _is_supported_weekday_deadline_correction(
+                item.deadline_text, cited_segments, language
+            ):
                 raise MinutesEvidenceError(
                     f"Action item {index} deadline_text is not present in its cited "
                     "transcript segments."
@@ -272,7 +438,7 @@ def build_meeting_export_v1(
 ) -> MeetingExportV1:
     segments = transcript_segments_v1(transcript)
     if check_evidence:
-        validate_minutes_evidence(minutes, segments)
+        validate_minutes_evidence(minutes, segments, language=transcript.language)
     else:
         validate_minutes_completeness(minutes, require_citations=False)
         validate_minutes_citations(minutes, segments)
@@ -318,6 +484,27 @@ def _validate_citation_ids(
 
 def _normalize_text(text: str) -> str:
     return " ".join(text.casefold().split())
+
+
+def _is_supported_weekday_deadline_correction(
+    deadline_text: str,
+    segments: Sequence[TranscriptSegmentV1],
+    language: Language | None,
+) -> bool:
+    languages: tuple[Language, ...] = (language,) if language else ("en", "it")
+    normalized_deadline = _normalize_text(deadline_text)
+    for segment in segments:
+        for current_language in languages:
+            for _, corrected_phrase in find_weekday_deadline_corrections(
+                segment.text, current_language
+            ):
+                corrected_word = corrected_phrase.rsplit(" ", 1)[-1]
+                if normalized_deadline in {
+                    _normalize_text(corrected_phrase),
+                    _normalize_text(corrected_word),
+                }:
+                    return True
+    return False
 
 
 _MONTHS: dict[str, int] = {

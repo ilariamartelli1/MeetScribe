@@ -37,7 +37,10 @@ class MinutesActionItem(_StrictModel):
         description="An anonymous voice ID, or null when attribution is unknown."
     )
     deadline_text: str | None = Field(
-        description="The deadline wording from the transcript, or null."
+        description=(
+            "Source-grounded deadline wording; a uniquely matched weekday "
+            "transcription error may be normalized."
+        )
     )
     deadline_date: date | None = Field(
         description="ISO calendar date only when explicitly stated and unambiguous."

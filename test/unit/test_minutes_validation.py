@@ -257,6 +257,47 @@ def test_deadline_wording_must_be_present_in_cited_source() -> None:
         validate_minutes_evidence(_minutes(action), transcript_segments_v1(transcript))
 
 
+@pytest.mark.parametrize("other_segment", [(), ("Another meeting is on Friday.",)])
+def test_unmatched_weekday_deadline_is_rejected_when_source_says_fragi(
+    other_segment: tuple[str, ...],
+) -> None:
+    transcript = _transcript("We will review the results on Fragi.", *other_segment)
+    action = _action(deadline_text="Thursday", source_segment_ids=("segment-1",))
+
+    with pytest.raises(
+        MinutesEvidenceError,
+        match="deadline_text is not present in its cited transcript segments",
+    ):
+        validate_minutes_evidence(_minutes(action), transcript_segments_v1(transcript))
+
+
+def test_deadline_matching_cited_fragi_passes_wording_check() -> None:
+    transcript = _transcript("We will review the results on Fragi.")
+    action = _action(deadline_text="Fragi", source_segment_ids=("segment-1",))
+
+    validate_minutes_evidence(_minutes(action), transcript_segments_v1(transcript))
+
+
+@pytest.mark.parametrize("deadline_text", ["on Friday", "Friday"])
+def test_unique_weekday_correction_is_accepted_as_deadline_evidence(
+    deadline_text: str,
+) -> None:
+    transcript = _transcript("We will review the results on Fragi.")
+    action = _action(deadline_text=deadline_text, source_segment_ids=("segment-1",))
+
+    validate_minutes_evidence(_minutes(action), transcript_segments_v1(transcript))
+
+
+def test_weekday_correction_is_not_allowed_for_a_named_term() -> None:
+    transcript = _transcript(
+        "We will review results on Fragi, the name of the new feature."
+    )
+    action = _action(deadline_text="on Friday", source_segment_ids=("segment-1",))
+
+    with pytest.raises(MinutesEvidenceError, match="deadline_text"):
+        validate_minutes_evidence(_minutes(action), transcript_segments_v1(transcript))
+
+
 def test_transcript_export_assigns_stable_ids_and_keeps_original_milliseconds() -> None:
     transcript = _transcript(
         "Elena will send the plan by March 5, 2027.",
