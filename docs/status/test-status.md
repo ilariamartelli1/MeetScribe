@@ -425,3 +425,96 @@ this run does not establish improved ASR accuracy.
 
 Update this snapshot after relevant test runs, recording skipped and unrun
 checks separately from failures.
+
+## Large-v3 model and quality rerun (2026-11-23)
+
+The app now defaults to full `Systran/faster-whisper-large-v3`, with model
+directory and artifact manifest configurable as a pair; large-v3-turbo remains
+available. In the earlier one-clip, 20.2-second synthetic comparison, Turbo
+produced `Fragi` and `Elina` (2/42 word errors; 4.76% WER), while full
+large-v3 produced `Friday` and `Elena` (0/42).
+
+| Model | Transcription time | Change vs. Turbo | Sampled peak GPU memory |
+|---|---:|---:|---:|
+| large-v3-turbo | 0.774 s | baseline | 1,238 MiB |
+| full large-v3 | 1.435 s | +0.661 s (+85.4%) | 2,294 MiB |
+
+For this standalone inference test, full large-v3 was **+85.4%** slower than
+Turbo. This is one 20.2-second synthetic clip, not a representative
+performance average.
+
+The real-model ASR and speaker-quality command passed **8 tests and reported
+1 expected XFAIL** in **201.74 seconds**. The four checkpoint recordings met
+the WER ≤ 3%, zero-deletion and selected-negation gates: English WAV/MP3 each
+scored 1.29% WER, Italian WAV/MP3 each scored 0.00%, with no deletions or
+selected-negation differences. The known repeated-sentence omission remained
+an XFAIL. Quiet negations/silence, five-minute timestamps, diarization and
+speaker alignment, including the two-voice exact-text check, passed. On this
+checkpoint, `Elena` was still transcribed as `Elina` twice; the quality gates
+do not rule out substitutions.
+
+| Quality check | Result | Elapsed time |
+|---|---|---:|
+| Real-model ASR and speaker-quality batch | 8 passed, 1 expected XFAIL | 201.74 s |
+| Isolated two-voice exact-text integration check (earlier targeted run) | PASS | 43.62 s, including image build |
+| Full three-case audio-to-minutes run | Failed on English context budget | 61.33 s |
+| Italian plus known-error minutes selection | Failed on Italian context budget; known-error case not reached | 34.18 s |
+| Isolated known-error minutes case | Failed quality assertion on project-status decision | 85.49 s |
+| Weekday-deadline assertion unit tests | 8 passed | 0.09 s |
+
+### Side-by-side timing for the ASR/speaker test batch
+
+| Test | large-v3-turbo (2026-11-21) | full large-v3 (2026-11-23) |
+|---|---:|---:|
+| Synthetic WAV/MP3 accuracy | 5.16 s | Individual time not captured; included in 201.74 s batch |
+| Four-recording checkpoint WER | 60.07 s | Individual time not captured; included in batch |
+| Quiet negations and silence | 5.18 s | Individual time not captured; included in batch |
+| Five-minute MP3 | 10.95 s | Individual time not captured; included in batch |
+| Repeated sentence | 4.74 s | Individual time not captured; included in batch |
+| Speaker alignment, shared English/Italian fixture | 31.90 s shared-fixture setup | Individual time not captured; separate exact-text run took 43.62 s including image build |
+| Community-1 diarization adapter | 14.32 s | Individual time not captured; included in batch (does not run ASR) |
+
+For the same selected batch, the old Turbo per-test/fixture times sum to
+**132.32 s** across **9 test items**; the full-large-v3 batch took **201.74 s**
+for those 9 items. That gives approximate average elapsed times of **14.70 s**
+per item for Turbo and **22.42 s** for full large-v3: **about +52.5%**. This is
+a rough batch-level average, not an average of paired per-test percentages:
+the Turbo values are historical per-test/fixture durations from the larger
+all-opt-in run, while the new model run recorded only the selected batch total.
+The batch also includes one diarization-only test.
+
+For the filtered known-error minutes test, the recorded total was **77.16 s**
+with Turbo and **85.49 s** with large-v3 (**+10.8%**). The transcription
+stage in the respective two-voice quality runs was **19.581 s** and **23.623 s**
+(**+20.6%**); that stage includes the production transcription workflow and is
+not the standalone inference timing above. These overlapping measurements are
+not added to the batch average.
+
+The known-error case report measured **23.623 s** for transcription and
+**57.245 s** for minutes generation. Other per-test durations within the
+201.74-second ASR batch were not captured by that pytest invocation; the time
+above is the whole batch duration. The run-level times are from separate
+invocations and should not be summed; stage timings exclude other setup and
+teardown time.
+
+The all-case audio-to-minutes run failed on the English checkpoint before
+minutes generation: estimated transcript context was **11,058 tokens versus
+4,096**. A separate run reached the Italian checkpoint and failed before
+generation at **4,461 versus 4,096 tokens**; the short known-error case was not
+reached in that run. Running the known-error case alone completed generation
+but failed its quality assertion because “Project is on schedule” was
+classified as a decision. The transcript correctly contained `Friday` and
+`Elena`; the action deadline was `Friday`. The results-review action was
+present and the in-meeting service description was not turned into an action.
+The deadline assertion was not reached because the decision assertion failed
+first. The decision issue remains a failure; the deadline wording is addressed
+by the test-only update below. Thus, none of the three minutes-quality cases
+passed in the recorded rerun. No other integration tests were run.
+
+**Minutes deadline assertion update (2026-11-23):** The known-error quality
+check now accepts either the exact source phrase (for example, `on Friday` or
+`by Friday`) or the weekday alone (`Friday`, case-insensitive). It still
+rejects a changed preposition or expanded wording. The focused helper tests
+passed **8 tests**; Ruff, formatting and mypy passed. The real-model minutes
+test was not rerun after this test-only adjustment; the recorded known-error
+run still fails on the separate project-status-as-decision check.
