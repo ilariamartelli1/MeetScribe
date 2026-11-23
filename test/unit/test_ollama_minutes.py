@@ -27,16 +27,16 @@ def test_adapter_translates_request_and_completion(reason: str, complete: bool) 
         )
     )
 
-    assert result == GenerationResult("text", complete, 40, 20)
+    assert result == GenerationResult("text", complete, 40, 20, reason)
     client.generate.assert_awaited_once_with(
         "prompt", num_ctx=4096, num_predict=768, temperature=0, response_format=schema
     )
 
 
-def test_pinned_extraction_budget_is_unchanged() -> None:
+def test_pinned_extraction_budget_matches_manifest() -> None:
     budget = ollama_minutes.load_extraction_budget()
-    assert budget.context_size == 4096
-    assert budget.max_generated_tokens == 768
+    assert budget.context_size == 16384
+    assert budget.max_generated_tokens == 4096
     assert budget.chat_template_reserve_tokens == 128
 
 

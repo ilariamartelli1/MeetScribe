@@ -92,6 +92,7 @@ class OllamaMinutesModel:
             complete=result.done_reason == OLLAMA_DONE_REASON_STOP,
             prompt_tokens=result.prompt_tokens,
             generated_tokens=result.generated_tokens,
+            completion_reason=result.done_reason,
         )
 
 
