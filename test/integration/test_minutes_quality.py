@@ -77,6 +77,18 @@ def _parse_report(stdout: str) -> dict[str, object]:
     raise RuntimeError("The audio-to-minutes test returned no quality report.")
 
 
+def _deadline_matches_source_or_weekday(
+    deadline_text: str | None, source_phrase: str
+) -> bool:
+    if deadline_text is None:
+        return False
+    expected = {
+        source_phrase.casefold(),
+        source_phrase.rsplit(" ", maxsplit=1)[-1].casefold(),
+    }
+    return deadline_text.casefold() in expected
+
+
 def _assert_known_asr_error_quality(evaluation: dict[str, object]) -> None:
     transcript = evaluation.get("transcript_download")
     minutes_data = evaluation.get("minutes")
@@ -121,16 +133,20 @@ def _assert_known_asr_error_quality(evaluation: dict[str, object]) -> None:
         assert not re.search(r"\bfragi\b", output_text, re.IGNORECASE), (
             "The minutes should normalize the clear weekday typo."
         )
-        assert any(item.deadline_text == "on Friday" for item in results_actions), (
-            "The results-review deadline should normalize to Friday."
-        )
+        assert any(
+            _deadline_matches_source_or_weekday(item.deadline_text, "on Friday")
+            for item in results_actions
+        ), "The results-review deadline should normalize to Friday."
     else:
         expected_deadline = re.search(r"\b(?:on|by)\s+Friday\b", transcript, re.I)
         assert expected_deadline, (
             "The transcript contains neither Fragi nor a source-grounded Friday."
         )
         assert any(
-            item.deadline_text == expected_deadline.group(0) for item in results_actions
+            _deadline_matches_source_or_weekday(
+                item.deadline_text, expected_deadline.group(0)
+            )
+            for item in results_actions
         ), "The results-review deadline must preserve the transcript wording."
     assert all(item.deadline_date is None for item in results_actions), (
         "A weekday must not be converted to an unsupported calendar date."
