@@ -57,6 +57,8 @@ target `test/unit`, and **Integration Test** can target `test/integration` with
 See [test status](docs/status/test-status.md) for the latest recorded results and
 the configurations used. See the [security overview](docs/status/security.md) for
 network boundaries, data handling and deployment limitations.
+The [minutes quality cases](docs/investigations/minutes-quality-evaluation.md)
+prepare human-reviewed comparisons of action items, owners and ASR errors.
 The [documentation index](docs/README.md) lists reports, architecture notes,
 investigations and status documents.
 
@@ -131,6 +133,10 @@ inference network shared with the app, with cloud features disabled. The
 Qwen3 4B Q4_K_M model layer is 2,497,280,480 bytes and is Apache-2.0
 licensed; the Ollama image and exact model digest are recorded in
 [`app/model_manifests/summary_model.toml`](app/model_manifests/summary_model.toml).
+The experimental `llm-normalize-python-summary` branch uses one structured
+model request followed by deterministic normalization and summary assembly.
+Its weekday correction is not part of `main`; see the
+[evaluation notes](docs/investigations/minutes-quality-evaluation.md).
 
 Provision the model before starting the runtime. This temporary Compose
 override gives Ollama outbound access only while pulling from the model
@@ -178,6 +184,22 @@ short known-ASR-error diagnostic:
 MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
   uv run --locked python -m pytest -q -s test/integration/test_minutes_quality.py
 ```
+
+The normal quality test runs the app and prints each transcript and minutes
+result. To run only the short `two-voices.wav` case, without first processing
+the long checkpoint recordings:
+
+```sh
+MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
+MEETSCRIBE_MINUTES_QUALITY_CASES=known-asr-error \
+  uv run --locked python -m pytest -q -s test/integration/test_minutes_quality.py
+```
+
+The isolated case uses the same normal app/API path and checks the reported
+action, decision and deadline, including weekday normalization. These focused
+checks do not establish general minutes quality or ASR accuracy. See the
+[evaluation notes](docs/investigations/minutes-quality-evaluation.md) for
+historical results and limitations.
 
 This multi-recording test requires the provisioned ASR, Community-1 and Qwen3
 models, an NVIDIA GPU, and Docker's NVIDIA Container Toolkit. It reports source

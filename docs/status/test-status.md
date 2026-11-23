@@ -17,7 +17,7 @@ means no matching result or duration is documented.
 | Name | Test/setup | Reported result | Reported runtime |
 |---|---|---|---:|
 | Integration - GPU Handoff | [`test/integration/test_gpu_handoff.py`](../../test/integration/test_gpu_handoff.py)::`test_real_gpu_handoff_serializes_and_releases_all_models` | **PASS** ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) | 86.73 s ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) |
-| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` | **FAIL** before model generation: estimated 11,322 tokens exceeded the 4,096-token context; no partial draft ([Slice 3.7](../reports/sprint-3-slice-3.7.md)) | 322.69 s ([Slice 3.7](../reports/sprint-3-slice-3.7.md)) |
+| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` (supports `MEETSCRIBE_MINUTES_QUALITY_CASES`) | Full run previously failed before model generation: estimated 11,322 tokens exceeded the 4,096-token context; filtered `known-asr-error` run passed | 322.69 s (full, historical); 77.16 s (filtered, 2026-11-22) |
 | Integration - Ollama Model | [`test/integration/test_ollama_model.py`](../../test/integration/test_ollama_model.py)::`test_pinned_ollama_model_runs_offline_on_gpu` | **PASS** ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) | 54.09 s ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) |
 | Integration - Browser - Fake Inference | [`test/integration/test_browser_flow.py`](../../test/integration/test_browser_flow.py):<br>`test_real_api_upload_summary_edit_review_and_direct_transcript_download`;<br>`test_regeneration_requires_confirmation_before_replacing_saved_edits`;<br>`test_stale_minutes_are_read_only_until_regenerated`;<br>`test_capacity_confirmation_precedes_replacement` (2 cases);<br>`test_cancel_running_transcription`;<br>`test_cancel_running_minutes_generation`;<br>`test_real_api_cancels_running_fake_transcription`;<br>`test_cancel_error_remains_visible_and_cancel_can_be_retried`;<br>`test_job_failure_is_visible_as_text` | Updated direct-download case **passed**; full configuration last ran in Slice 3.7 (10 passed, using the earlier separate-page case) | Updated case: 4.88 s; Slice 3.6: 17.95 s ([report](../reports/sprint-3-slice-3.6.md)); Slice 3.7 runtime not reported |
 | Integration - CPU - ASR and Diarization Feasibility (long) | [`test/integration/test_diarization_feasibility.py`](../../test/integration/test_diarization_feasibility.py)::`test_offline_asr_then_diarization[cpu-None]`; `test_offline_asr_then_diarization[cpu-mp3]` | **PASS**, both CPU cases (2026-11-21 all-opt-in run) | 60.07 s + 24.12 s per case; config wall time not reported |
@@ -35,6 +35,33 @@ means no matching result or duration is documented.
 | Integration - Synthetic Two-Voice Fixture | Configured target [`test/integration/test_diarization_adapter.py`](../../test/integration/test_diarization_adapter.py) uses `-k versioned`, which matches no test there. The related in-code fixture check is [`test/unit/test_asr_helpers.py`](../../test/unit/test_asr_helpers.py)::`test_integration_paths_use_versioned_fixtures`, but this config does not target it. | No tests selected by the current target/filter; no result reported | Not reported |
 | Integration - GPU - ASR Five-minute MP3 (long) | [`test/integration/test_asr_long_recording.py`](../../test/integration/test_asr_long_recording.py)::`test_five_minute_mp3_has_bounded_timestamps_and_final_speech` | **PASS** (2026-11-21 all-opt-in run) | 10.95 s |
 | Unit Tests | All pytest tests under [`test/unit/`](../../test/unit/) (directory target; no single test node) | **285 passed** (provider-independent pipeline update below) | 14.48 s, unit-only command |
+
+**Initial two-voice quality update (before deterministic normalization):** The
+focused case, checker and fake-API unit
+tests passed **13 tests** in 0.19 seconds. The approved offline Docker/GPU
+two-voice run collected the transcript and minutes, then reported **1 passed,
+4 failed** in 80.01 seconds. After adding a deadline check, replay of the saved
+output reported **1 passed, 5 failed** in 0.08 seconds without model inference.
+After adding a required results-review action check, replay reported **2 passed,
+5 failed** in 0.09 seconds; the new check passed.
+The failures cover `Friday`/`Fragi`, an in-meeting activity classified as a
+follow-up, its missing owner, the missing Friday deadline, and project status
+classified as a decision. The six integration cases were also confirmed skipped
+by default without either opt-in setting. No other integration tests were run. These narrow
+checks and their limitations are documented in the
+[evaluation notes](../investigations/minutes-quality-evaluation.md).
+
+**Required results-review action update:** Focused case-inventory and
+quality-check unit tests passed **13 tests** in 0.08 seconds. The new check
+fails if the results review is missing from action items even when it is
+mentioned in the summary. No new model run was performed.
+
+**Initial raw deadline evidence update (before safe normalization):** The
+minutes-validation and extractor unit tests
+passed **45 tests** in 0.14 seconds. They include the two-voice `Fragi` /
+`Friday` mismatch, a `Friday` mention in an uncited segment, and extractor
+rejection of the unsupported deadline. No model or integration test was run
+for this update.
 
 **Direct transcript download update:** The focused browser-assets unit tests
 passed **8 tests** in 0.55 seconds with the existing Starlette/AnyIO warning.
@@ -162,6 +189,42 @@ behavior and leave slice 3.7 incomplete rather than adding transcript
 chunking or changing models/context. The five-minute audio limit therefore
 does not guarantee that its transcript can be summarized; see the
 [slice 3.7 report](../reports/sprint-3-slice-3.7.md).
+
+**Minutes quality iteration (2026-11-22):** Replaced the second LLM summary
+call with a single structured analysis call followed by deterministic,
+source-aware normalization and summary assembly. The fixed-transcript Ollama
+evaluation passed **12 tests** across six cases in **78.68 seconds**. The real
+Docker/GPU two-voice audio-to-minutes run passed **6 tests** in **79.36
+seconds**. Its ASR transcript still contained `Fragi` and `Elina`; the minutes
+preserved the transcript, presented `Fragi` → `Friday` only as unverified, left
+the results-review deadline null, retained that requested action, kept Marco's
+description out of action items, and did not label project status as a
+decision. The run used **626 prompt tokens** and **259 generated tokens** for
+minutes after a **19.581-second** transcription; the extraction prompt bound
+was **2,827** tokens. It is not evidence that ASR accuracy improved or that a
+name correction is safe. The artifacts are gitignored at
+`data/evaluations/minutes-prompt-f916b07358f44bcc86b09212b8515781.json` and
+`data/evaluations/two-voices-ecd4beccb5db48aebe7c6f0bb2b276cb.json`.
+
+**Quality test consolidation (2026-11-22):** Removed the separate frozen-text
+evaluator and two-voice integration wrapper. The existing real-app quality
+test now runs all three audio cases by default or selects a case with
+`MEETSCRIBE_MINUTES_QUALITY_CASES`; it still collects and prints the actual
+transcript and minutes. Its filtered `known-asr-error` run passed **1
+integration test** in **77.16 seconds**. The output again contained `Fragi`
+and `Elina` in the ASR transcript; the minutes kept `Fragi` → `Friday`
+unverified, left the review deadline null, retained the review action, omitted
+Marco's in-meeting description as an action, and excluded project status from
+decisions. The earlier 12-check and 6-check results above are historical runs
+from before consolidation.
+
+After removing test-harness-only unit modules, the provider-independent suite
+passed **301 tests** in **14.43 seconds** with one existing Starlette/AnyIO
+deprecation warning. Targeted Ruff, formatting and mypy checks passed. The full
+integration suite, long
+297-second minutes-context test, and separate exact-text ASR test were not run
+in this iteration. Slice 3.7 remains incomplete because the long transcript
+still exceeds the configured context.
 
 **All-opt-in test run:** On 2026-11-21, the complete suite ran with all opt-in
 flags enabled using:
@@ -343,6 +406,22 @@ GPU resources. For example, to rerun the checkpoint:
 MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s \
   test/integration/test_checkpoint_wer.py
 ```
+
+## Experimental branch weekday normalization (2026-11-22)
+
+The experimental extractor on `llm-normalize-python-summary` normalizes an
+explicit weekday typo only when one weekday is a strong, unique match and
+named-term checks do not apply. The corrected phrase appears in the action
+deadline and summary; the original transcript remains unchanged, and no
+calendar date is inferred. On that branch, the unit suite passed **308 tests**
+in **14.79 seconds** with one existing Starlette/AnyIO deprecation warning.
+The filtered real two-voice quality test passed **1 integration test** in
+**77.59 seconds**, verifying `on Friday` while the ASR transcript still says
+`Fragi`. Unit tests also cover an independent English typo, an Italian weekday
+typo, weak matches and named-term counterexamples. `main` contains the quality
+checks but not this implementation, so they may fail there until the branch is
+merged. The full integration suite and 297-second context test remain unrun;
+this run does not establish improved ASR accuracy.
 
 Update this snapshot after relevant test runs, recording skipped and unrun
 checks separately from failures.
