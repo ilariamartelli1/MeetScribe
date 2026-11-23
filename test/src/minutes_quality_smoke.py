@@ -5,12 +5,12 @@ import os
 import subprocess
 import threading
 import time
-import wave
 from _thread import LockType
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal, TypedDict
 
+import av
 import httpx
 
 API_BASE_URL = "http://127.0.0.1:8000"
@@ -50,7 +50,7 @@ CASES: tuple[EvaluationCase, ...] = (
     {
         "name": "english-checkpoint",
         "language": "en",
-        "audio_path": Path("/audio/checkpoint/english/meeting-en.wav"),
+        "audio_path": Path("/audio/checkpoint/english/meeting-en.mp3"),
         "reference_path": Path("/audio/checkpoint/english/meeting-en-script.txt"),
         "metadata_path": Path(
             "/audio/checkpoint/english/meeting-en-draft-reference.json"
@@ -152,11 +152,24 @@ def _wait_for_job(
 
 
 def _audio_duration_seconds(path: Path) -> float:
-    with wave.open(str(path), "rb") as audio:
-        frame_rate = audio.getframerate()
-        if frame_rate <= 0:
-            raise ValueError(f"Audio has an invalid frame rate: {path.name}")
-        return audio.getnframes() / frame_rate
+    with av.open(str(path), mode="r") as container:
+        if container.duration is not None:
+            duration_seconds = container.duration / av.time_base
+        else:
+            audio_stream = next(
+                (stream for stream in container.streams if stream.type == "audio"),
+                None,
+            )
+            if (
+                audio_stream is None
+                or audio_stream.duration is None
+                or audio_stream.time_base is None
+            ):
+                raise ValueError(f"Unable to determine audio duration for {path.name}.")
+            duration_seconds = float(audio_stream.duration * audio_stream.time_base)
+    if duration_seconds <= 0:
+        raise ValueError(f"Audio has an invalid duration: {path.name}")
+    return duration_seconds
 
 
 def _reference_status(case: EvaluationCase) -> str:
@@ -192,12 +205,18 @@ def _run_case(
 
     origin = {"origin": API_BASE_URL}
     transcription_started = time.monotonic()
+    media_type = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+    }.get(audio_path.suffix.lower())
+    if media_type is None:
+        raise ValueError(f"Unsupported audio file format: {audio_path.suffix}")
     with audio_path.open("rb") as audio:
         uploaded = client.post(
             "/api/v1/jobs",
             headers=origin,
             data={"language": language},
-            files={"file": (audio_path.name, audio, "audio/wav")},
+            files={"file": (audio_path.name, audio, media_type)},
         )
     if uploaded.status_code != 202:
         raise RuntimeError(f"Audio upload failed: {uploaded.text}")
