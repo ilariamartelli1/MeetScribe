@@ -5,6 +5,7 @@ Set MEETSCRIBE_MINUTES_QUALITY_TESTS=1 to run the Docker/GPU evaluation.
 
 import json
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -12,9 +13,17 @@ from pathlib import Path
 
 import pytest
 
+from app.core.minutes_contract import MinutesDraft
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SMOKE_PATH = PROJECT_ROOT / "test/src/minutes_quality_smoke.py"
 TEST_TIMEOUT_SECONDS = 1800
+CASE_SELECTION_ENV = "MEETSCRIBE_MINUTES_QUALITY_CASES"
+CASE_NAMES = {
+    "english-checkpoint",
+    "italian-checkpoint",
+    "known-asr-error",
+}
 READY_CHECK = (
     "import urllib.request; "
     "urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2).read(); "
@@ -68,6 +77,70 @@ def _parse_report(stdout: str) -> dict[str, object]:
     raise RuntimeError("The audio-to-minutes test returned no quality report.")
 
 
+def _assert_known_asr_error_quality(evaluation: dict[str, object]) -> None:
+    transcript = evaluation.get("transcript_download")
+    minutes_data = evaluation.get("minutes")
+    assert isinstance(transcript, str), evaluation
+    assert isinstance(minutes_data, dict), evaluation
+    minutes = MinutesDraft.model_validate_json(json.dumps(minutes_data))
+
+    results_actions = [
+        item
+        for item in minutes.action_items
+        if re.search(r"\breview\w*\b", item.description, re.IGNORECASE)
+        and re.search(r"\bresults?\b", item.description, re.IGNORECASE)
+    ]
+    assert results_actions, "The results review must remain a follow-up action."
+    for item in minutes.action_items:
+        is_description = re.search(
+            r"\b(describ\w*|present\w*|explain\w*)\b", item.description, re.I
+        )
+        is_in_meeting_subject = re.search(
+            r"\b(changes|updates|service)\b", item.description, re.I
+        )
+        assert not (is_description and is_in_meeting_subject), (
+            f"An in-meeting description became a follow-up action: {item.description}"
+        )
+    assert all(
+        not re.search(r"\bon schedule\b", decision.text, re.IGNORECASE)
+        for decision in minutes.decisions
+    ), "Project status must not be classified as a decision."
+
+    output_text = " ".join(
+        [
+            minutes.summary,
+            *(topic.text for topic in minutes.topics),
+            *(decision.text for decision in minutes.decisions),
+            *(
+                f"{item.description} {item.deadline_text or ''}"
+                for item in minutes.action_items
+            ),
+        ]
+    )
+    if re.search(r"\bfragi\b", transcript, re.IGNORECASE):
+        assert not re.search(r"\bfragi\b", output_text, re.IGNORECASE), (
+            "The minutes should normalize the clear weekday typo."
+        )
+        assert any(item.deadline_text == "on Friday" for item in results_actions), (
+            "The results-review deadline should normalize to Friday."
+        )
+    else:
+        expected_deadline = re.search(r"\b(?:on|by)\s+Friday\b", transcript, re.I)
+        assert expected_deadline, (
+            "The transcript contains neither Fragi nor a source-grounded Friday."
+        )
+        assert any(
+            item.deadline_text == expected_deadline.group(0) for item in results_actions
+        ), "The results-review deadline must preserve the transcript wording."
+    assert all(item.deadline_date is None for item in results_actions), (
+        "A weekday must not be converted to an unsupported calendar date."
+    )
+    assert re.search(r"\bfriday\b", minutes.summary, re.IGNORECASE), (
+        "The summary should include the results-review weekday."
+    )
+    assert not re.search(r"\b(unverified|possible transcription)\b", output_text, re.I)
+
+
 @pytest.mark.skipif(
     os.environ.get("MEETSCRIBE_MINUTES_QUALITY_TESTS") != "1",
     reason=(
@@ -79,6 +152,14 @@ def test_real_audio_to_minutes_quality_report() -> None:
     project = f"meetscribe-minutes-quality-{uuid.uuid4().hex[:12]}"
     env = os.environ.copy()
     compose = _compose_command(project)
+    selection = env.get(CASE_SELECTION_ENV)
+    if selection is None:
+        expected_names = CASE_NAMES
+    else:
+        expected_names = {name.strip() for name in selection.split(",") if name.strip()}
+        assert expected_names and expected_names <= CASE_NAMES, (
+            f"Invalid {CASE_SELECTION_ENV} selection: {selection!r}"
+        )
     try:
         subprocess.run(
             [*compose, "up", "--build", "-d", "app", "ollama"],
@@ -90,8 +171,12 @@ def test_real_audio_to_minutes_quality_report() -> None:
             timeout=1200,
         )
         _wait_for_services(compose, env)
+        smoke_command = [*compose, "exec", "-T"]
+        if selection is not None:
+            smoke_command.extend(["-e", f"{CASE_SELECTION_ENV}={selection}"])
+        smoke_command.extend(["app", "python", "-"])
         result = subprocess.run(
-            [*compose, "exec", "-T", "app", "python", "-"],
+            smoke_command,
             cwd=PROJECT_ROOT,
             env=env,
             input=SMOKE_PATH.read_text(encoding="utf-8"),
@@ -104,14 +189,13 @@ def test_real_audio_to_minutes_quality_report() -> None:
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
         report = _parse_report(result.stdout)
+        print(json.dumps(report, indent=2, ensure_ascii=False))
         evaluations = report.get("evaluations")
-        assert isinstance(evaluations, list) and len(evaluations) == 3, report
+        assert isinstance(evaluations, list) and len(evaluations) == len(
+            expected_names
+        ), report
         names = {entry.get("case") for entry in evaluations if isinstance(entry, dict)}
-        assert names == {
-            "english-checkpoint",
-            "italian-checkpoint",
-            "known-asr-error",
-        }, report
+        assert names == expected_names, report
         for entry in evaluations:
             assert isinstance(entry, dict), report
             assert entry.get("review_status") == "DRAFT / UNREVIEWED", entry
@@ -122,7 +206,8 @@ def test_real_audio_to_minutes_quality_report() -> None:
             assert isinstance(metrics, dict), entry
             assert metrics.get("context_size") == 4096, entry
             assert isinstance(entry.get("reference_script"), str), entry
-        print(json.dumps(report, indent=2, ensure_ascii=False))
+            if entry.get("case") == "known-asr-error":
+                _assert_known_asr_error_quality(entry)
     finally:
         subprocess.run(
             [*compose, "down", "--remove-orphans"],

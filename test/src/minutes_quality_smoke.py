@@ -1,6 +1,7 @@
 """Run synthetic audio through the local API and report transcript/minutes quality."""
 
 import json
+import os
 import subprocess
 import threading
 import time
@@ -72,6 +73,24 @@ CASES: tuple[EvaluationCase, ...] = (
         "metadata_path": None,
     },
 )
+CASE_SELECTION_ENV = "MEETSCRIBE_MINUTES_QUALITY_CASES"
+
+
+def _selected_cases() -> tuple[EvaluationCase, ...]:
+    selection = os.environ.get(CASE_SELECTION_ENV)
+    if selection is None:
+        return CASES
+
+    selected_names = {name.strip() for name in selection.split(",") if name.strip()}
+    if not selected_names:
+        raise ValueError(f"{CASE_SELECTION_ENV} must name at least one case.")
+    available_names = {case["name"] for case in CASES}
+    unknown_names = selected_names - available_names
+    if unknown_names:
+        raise ValueError(
+            f"Unknown {CASE_SELECTION_ENV} case(s): {', '.join(sorted(unknown_names))}"
+        )
+    return tuple(case for case in CASES if case["name"] in selected_names)
 
 
 def _set_stage(stage_state: dict[str, str], stage_lock: LockType, name: str) -> None:
@@ -269,6 +288,7 @@ def _peak_by_stage(samples: list[ResourceSample]) -> dict[str, dict[str, float]]
 
 def main() -> None:
     started_at = time.monotonic()
+    selected_cases = _selected_cases()
     samples: list[ResourceSample] = []
     sample_errors: list[Exception] = []
     stage_state = {"name": "baseline"}
@@ -306,7 +326,8 @@ def main() -> None:
             health = client.get("/api/v1/health")
             health.raise_for_status()
             evaluations = [
-                _run_case(client, case, set_stage, started_at) for case in CASES
+                _run_case(client, case, set_stage, started_at)
+                for case in selected_cases
             ]
             set_stage("complete")
     finally:
@@ -322,6 +343,7 @@ def main() -> None:
         + json.dumps(
             {
                 "evaluations": evaluations,
+                "selected_cases": [case["name"] for case in selected_cases],
                 "sample_interval_seconds": SAMPLE_INTERVAL_SECONDS,
                 "sampled_peak_by_stage": _peak_by_stage(samples),
                 "resource_samples": samples,
