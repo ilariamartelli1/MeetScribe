@@ -186,8 +186,16 @@ MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
 ```
 
 The normal quality test runs the app and prints each transcript and minutes
-result. To run only the short `two-voices.wav` case, without first processing
-the long checkpoint recordings:
+result. To run only the 297-second English MP3 checkpoint:
+
+```sh
+MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
+MEETSCRIBE_MINUTES_QUALITY_CASES=english-checkpoint \
+  uv run --locked python -m pytest -q -s test/integration/test_minutes_quality.py
+```
+
+To run only the short `two-voices.wav` case, without first processing the
+checkpoint recordings:
 
 ```sh
 MEETSCRIBE_MINUTES_QUALITY_TESTS=1 \
@@ -204,15 +212,20 @@ historical results and limitations.
 This multi-recording test requires the provisioned ASR, Community-1 and Qwen3
 models, an NVIDIA GPU, and Docker's NVIDIA Container Toolkit. It reports source
 transcripts, generated drafts, extraction-token counts, stage durations and
-sampled resources when all cases complete. In the first real run, transcription
-of the 297-second English checkpoint succeeded, but minutes generation failed
-fast because its conservative total context estimate (prompt upper bound plus
-reserved generation tokens) was 11,322 tokens against the configured
-4,096-token context. The Italian and known-ASR-error cases did not
-run, and no generated draft or resource report was produced. The current
-fail-fast behavior is retained; a successful upload is not guaranteed to fit
-the summary context. Slice 3.7 remains incomplete. This is not an
-ASR/minutes-accuracy threshold or a VM-capacity test; see [minutes context
+sampled resources when all cases complete. The initial real run stopped before
+inference because the English checkpoint's 11,322-token conservative bound
+exceeded the then-configured 4,096-token context. An earlier English WAV run
+passed with a 12,288-token context and 1,024-token output limit. The current
+English-only case uses `meeting-en.mp3` and passed with a 16,384-token context
+and 4,096-token output limit: the 297.305-second recording used a 10,199-token
+prompt upper bound, 2,862 runtime prompt tokens and 1,023 generated tokens;
+minutes generation took 120.283 seconds and the full test 203.09 seconds.
+Sampled GPU use peaked at 4,710 MiB of 6,141 MiB, with no GPU error. This
+verifies a complete draft for this fixture, not semantic minutes quality or
+universal five-minute capacity. The Italian and known-ASR-error cases were not
+included, so slice 3.7 remains incomplete. Over-budget transcripts still fail
+without truncation or partial drafts. This is not an ASR/minutes-accuracy
+threshold or a VM-capacity test; see [minutes context
 scaling and limitations](docs/investigations/minutes-context-scaling.md) for current evidence
 and known limits, and [minutes retrieval options](docs/architecture/minutes-retrieval-options.md)
 for exploratory chunking and RAG tradeoffs.
@@ -233,9 +246,9 @@ optional profile, the browser provides transcription only. Open
 `http://127.0.0.1:8000/` in a browser. Select a mono or stereo WAV or MP3 (up
 to five minutes and 100 MB), choose its language, and, with the summary profile
 running, create a draft summary. Minutes generation requires the complete
-transcript to fit the configured 4,096-token context; an over-budget transcript
-fails without a partial draft, even when its audio upload is within the current
-limit.
+transcript to fit the configured 16,384-token context and 4,096-token output
+budget; an over-budget transcript fails without a partial draft, even when its
+audio upload is within the current limit.
 Edit the summary, topics, decisions and action items, then save before marking
 the current revision reviewed or downloading TXT/JSON exports. TXT contains
 only minutes; JSON v1 includes the source transcript segments and speaker IDs.

@@ -18,10 +18,13 @@
   two-voice results below are from branch `llm-normalize-python-summary`, not
   `main`; that branch remains unreviewed. The latest two-voice run verifies
   `on Friday` in the action deadline and summary while ASR still outputs
-  `Fragi`; `Elina` remains uncorrected. The 297-second checkpoint still exceeds
-  the 4,096-token context. The duplicate fixed-text and two-voice test runners
-  were later removed; the standard app-backed quality test now supports
-  selecting the short two-voice case.
+  `Fragi`; `Elina` remains uncorrected. The initial 297-second checkpoint run
+  exceeded the former 4,096-token context. A later English WAV run completed
+  at 12,288 context and a 1,024-token output limit; the current English MP3 run
+  passed at 16,384 context and a 4,096-token output limit. Neither run
+  automatically scored semantic quality. The duplicate fixed-text and
+  two-voice test runners were later removed; the standard app-backed quality
+  test now supports selecting individual audio cases.
 
 This report records human-reviewed, single-run results, not a general model
 benchmark. The six-case fixed-transcript evaluator and its inventory were
@@ -156,9 +159,13 @@ also passed.
 These are single-run results on the development machine, not a general quality
 benchmark. The fixed-text suite does not measure ASR. The real-audio run
 confirms the transcript errors were not fixed, and the known exact-text ASR
-failure remains outside this minutes-quality change. The long 297-second
-checkpoint still exceeds the configured context and remains a separate,
-unresolved Sprint 3.7 limitation.
+failure remains outside this minutes-quality change. The initial 297-second
+checkpoint run exceeded the former 4,096-token context; an English WAV rerun
+completed at 12,288 context and a 1,024-token output limit. The later English
+MP3 rerun completed at 16,384 context and a 4,096-token output limit, using
+2,862 prompt and 1,023 generated tokens. These runs did not assess semantic
+quality, and the Italian and known-ASR-error cases remain untested with the
+updated settings.
 
 ## Experimental weekday normalization (2026-11-22)
 

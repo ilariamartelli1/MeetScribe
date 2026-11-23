@@ -13,9 +13,10 @@ real-model minutes-extraction result in this slice.
 
 ## Context and completion bounds
 
-The extraction context remains at **4,096 tokens**, matching the measured
-smoke/handoff configuration in slices 3.1 and 3.2. It does not use Qwen3's
-advertised maximum or make a claim about the unknown future VM. The manifest
+At the end of slice 3.4, the extraction context was **4,096 tokens**, matching
+the measured smoke/handoff configuration in slices 3.1 and 3.2. It does not
+use Qwen3's advertised maximum or claim a capacity for the unknown future VM.
+The manifest
 reserves at most **768 generated tokens** and **128 tokens** for chat-template
 overhead; temperature is zero. The existing Ollama client disables thinking
 and sends the manifest's explicit `num_ctx`.
@@ -29,8 +30,9 @@ prompt's output-shape example is included in the byte bound. This byte-based
 bound is deliberately conservative, not a model tokenizer measurement. On
 every extraction, the adapter also requires Ollama's prompt and generation
 counts and rejects missing counts, a prompt count above the bound, generation
-above 768, or a combined count above 4,096. A real extraction is still needed
-to verify that the 128-token template reserve is sufficient in practice.
+above 768, or a combined count above 4,096. No real extraction had yet been
+run at the end of slice 3.4 to verify the 128-token template reserve; see the
+[slice 3.7 follow-up](sprint-3-slice-3.7.md) for later measurements.
 
 IMPORTANT:
 An input that does not fit fails before model inference. This slice does not

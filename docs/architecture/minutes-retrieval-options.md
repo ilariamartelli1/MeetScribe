@@ -18,10 +18,16 @@ resource requirements for that VM.
 
 The current minutes prompt contains every attributed transcript segment,
 including its segment ID, timestamps, speaker ID and text. Its configured
-context is 4,096 tokens. In the first approved slice 3.7 run, a 297.305-second
-English recording had a conservative total context estimate of 11,322 tokens,
-so `MinutesContextBudgetError` stopped extraction before the model ran. This
-shows a context-budget limit, not a minutes-quality failure. See the
+context is 16,384 tokens, with up to 4,096 generated tokens. In the first
+approved slice 3.7 run, a 297.305-second English recording had a conservative
+total context estimate of 11,322 tokens, so `MinutesContextBudgetError`
+stopped extraction before the model ran at the then-configured 4,096-token
+limit. A 2026-11-23 English WAV rerun completed at 12,288 context and 1,024
+maximum output tokens, with 2,901 runtime prompt tokens and 812 generated
+tokens. The later English MP3 run completed at 16,384 context and 4,096
+maximum output tokens, with 2,862 runtime prompt tokens and 1,023 generated
+tokens. These runs verify generation for that fixture, not minutes quality or
+a universal duration limit. See the
 [context-scaling report](../investigations/minutes-context-scaling.md) and
 [slice 3.7 report](../reports/sprint-3-slice-3.7.md).
 
@@ -58,9 +64,10 @@ Increasing context does not guarantee better reasoning and can increase
 latency and memory use. It does not solve transcripts larger than the chosen
 limit.
 
-**Fit:** Keep as the quality baseline for recordings that fit. It is not a
-solution to the observed 11,322-token case under the current 4,096-token
-configuration.
+**Fit:** Keep as the quality baseline for recordings that fit. The current
+16,384-token setting completed the English MP3 checkpoint, but does not
+guarantee that every five-minute transcript fits or that its minutes are
+accurate.
 
 ### 2. Chronological, overlapping chunk-and-merge
 

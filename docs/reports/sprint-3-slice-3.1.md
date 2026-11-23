@@ -64,8 +64,10 @@ Setting notes:
 
 - `num_ctx=4096`: prompt-plus-output context cap; tested smoke budget, not
   Qwen3's advertised 262,144-token maximum.
-- `num_predict=16`: output cap; enough for tiny smoke reply ({"ready": true} -> 9 tokens). Minutes
-  extraction later allows up to 768.
+- `num_predict=16`: output cap; enough for tiny smoke reply
+  (`{"ready": true}` -> 9 tokens). The initial minutes extractor later allowed
+  up to 768 tokens; the 2026-11-23 slice 3.7 follow-up raised that limit to
+  1,024.
 - `temperature=0`: minimize sampling randomness; easier smoke verification.
 - JSON format: request JSON output; smoke parses exact object. Later extraction
   supplies full minutes schema.

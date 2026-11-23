@@ -1,6 +1,6 @@
 # Test status
 
-Snapshot: 2026-11-21, based on repository commit `e9fbd6b`. This document
+Snapshot: 2026-11-23, based on repository commit `d92579f`. This document
 records observed results, not a live dashboard. Results apply to the stated
 environment and test inputs; reruns may differ.
 
@@ -17,7 +17,7 @@ means no matching result or duration is documented.
 | Name | Test/setup | Reported result | Reported runtime |
 |---|---|---|---:|
 | Integration - GPU Handoff | [`test/integration/test_gpu_handoff.py`](../../test/integration/test_gpu_handoff.py)::`test_real_gpu_handoff_serializes_and_releases_all_models` | **PASS** ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) | 86.73 s ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) |
-| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` (supports `MEETSCRIBE_MINUTES_QUALITY_CASES`) | Full run previously failed before model generation: estimated 11,322 tokens exceeded the 4,096-token context; filtered `known-asr-error` run passed | 322.69 s (full, historical); 77.16 s (filtered, 2026-11-22) |
+| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` (supports `MEETSCRIBE_MINUTES_QUALITY_CASES`) | English MP3-only **PASS** (16,384 context / 4,096 output; sampled GPU peak 4,710/6,141 MiB); earlier English WAV pass at 12,288/1,024; Italian and known-ASR-error cases not rerun | 203.09 s (MP3); 126.09 s (WAV); 322.69 s (full, historical) |
 | Integration - Ollama Model | [`test/integration/test_ollama_model.py`](../../test/integration/test_ollama_model.py)::`test_pinned_ollama_model_runs_offline_on_gpu` | **PASS** ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) | 54.09 s ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) |
 | Integration - Browser - Fake Inference | [`test/integration/test_browser_flow.py`](../../test/integration/test_browser_flow.py):<br>`test_real_api_upload_summary_edit_review_and_direct_transcript_download`;<br>`test_regeneration_requires_confirmation_before_replacing_saved_edits`;<br>`test_stale_minutes_are_read_only_until_regenerated`;<br>`test_capacity_confirmation_precedes_replacement` (2 cases);<br>`test_cancel_running_transcription`;<br>`test_cancel_running_minutes_generation`;<br>`test_real_api_cancels_running_fake_transcription`;<br>`test_cancel_error_remains_visible_and_cancel_can_be_retried`;<br>`test_job_failure_is_visible_as_text` | Updated direct-download case **passed**; full configuration last ran in Slice 3.7 (10 passed, using the earlier separate-page case) | Updated case: 4.88 s; Slice 3.6: 17.95 s ([report](../reports/sprint-3-slice-3.6.md)); Slice 3.7 runtime not reported |
 | Integration - CPU - ASR and Diarization Feasibility (long) | [`test/integration/test_diarization_feasibility.py`](../../test/integration/test_diarization_feasibility.py)::`test_offline_asr_then_diarization[cpu-None]`; `test_offline_asr_then_diarization[cpu-mp3]` | **PASS**, both CPU cases (2026-11-21 all-opt-in run) | 60.07 s + 24.12 s per case; config wall time not reported |
@@ -183,11 +183,11 @@ context estimate (prompt upper bound plus reserved generation tokens) was
 **11,322 tokens versus a 4,096-token context**. The failure occurred before
 model generation and correctly produced no partial draft. The Italian and
 known-ASR-error recordings were not reached; there are no real extraction-token
-counts, successful minutes-quality results or resource report from this run.
-Human correction time was not measured. By user decision, retain fail-fast
-behavior and leave slice 3.7 incomplete rather than adding transcript
-chunking or changing models/context. The five-minute audio limit therefore
-does not guarantee that its transcript can be summarized; see the
+counts or resource report from that run. Human correction time was not
+measured. Fail-fast behavior remains in place for transcripts that exceed the
+configured context; no transcript chunking or model change was introduced. The
+five-minute audio limit does not guarantee that every transcript can be
+summarized; see the
 [slice 3.7 report](../reports/sprint-3-slice-3.7.md).
 
 **Minutes quality iteration (2026-11-22):** Replaced the second LLM summary
@@ -223,8 +223,8 @@ passed **301 tests** in **14.43 seconds** with one existing Starlette/AnyIO
 deprecation warning. Targeted Ruff, formatting and mypy checks passed. The full
 integration suite, long
 297-second minutes-context test, and separate exact-text ASR test were not run
-in this iteration. Slice 3.7 remains incomplete because the long transcript
-still exceeds the configured context.
+in this iteration. At that point, slice 3.7 remained incomplete; the later
+English-only context rerun is recorded below.
 
 **All-opt-in test run:** On 2026-11-21, the complete suite ran with all opt-in
 flags enabled using:
@@ -518,3 +518,24 @@ rejects a changed preposition or expanded wording. The focused helper tests
 passed **8 tests**; Ruff, formatting and mypy passed. The real-model minutes
 test was not rerun after this test-only adjustment; the recorded known-error
 run still fails on the separate project-status-as-decision check.
+
+**English WAV minutes-context rerun (2026-11-23):** With a 12,288-token
+context and 1,024-token output limit, the selected `english-checkpoint`
+integration test passed in **126.09 seconds**. The 297.305-second recording
+produced 49 segments; extraction used a **10,290-token prompt upper bound**,
+**2,901 runtime prompt tokens** and **812 generated tokens**. Minutes
+generation took **67.259 seconds**. Sampled GPU use peaked at **4,444 MiB**
+during minutes generation and **2,294 MiB** during transcription, out of
+**6,141 MiB** total; no GPU error occurred. This validates generation and
+export shape for this fixture, not semantic quality.
+
+**English MP3 minutes rerun:** The selected `english-checkpoint` integration
+test now uses `meeting-en.mp3` and passed with a 16,384-token context and
+4,096-token output limit in **203.09 seconds**. The 297.305-second recording
+used a **10,199-token prompt upper bound**, **2,862 runtime prompt tokens** and
+**1,023 generated tokens**; minutes generation took **120.283 seconds**.
+Sampled GPU use peaked at **4,710 MiB** during minutes generation and **2,294
+MiB** during transcription, out of **6,141 MiB** total; no GPU error occurred.
+This validates generation and export shape for this fixture, not semantic
+quality. Italian and known-ASR-error cases were not included, so the
+three-case checkpoint remains incomplete.
