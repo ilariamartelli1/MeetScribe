@@ -100,7 +100,11 @@ class FakeModelClient:
         error: RuntimeError | None = None,
     ) -> None:
         self.result = GenerationResult(
-            text, done_reason == "stop", prompt_tokens, generated_tokens
+            text,
+            done_reason == "stop",
+            prompt_tokens,
+            generated_tokens,
+            done_reason,
         )
         self.error = error
         self.calls = 0
@@ -275,7 +279,10 @@ def test_length_stopped_response_is_rejected_before_json_parsing() -> None:
         generated_tokens=768,
     )
 
-    with pytest.raises(MinutesIncompleteResponseError, match="stopped"):
+    with pytest.raises(
+        MinutesIncompleteResponseError,
+        match=r"reason='length'.*generated_tokens=768.*context_size=4096",
+    ):
         asyncio.run(
             make_extractor(client).extract(_transcript("Alice will send the plan."))
         )

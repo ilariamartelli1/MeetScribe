@@ -37,6 +37,7 @@ class GenerationResult:
     complete: bool
     prompt_tokens: int | None
     generated_tokens: int | None
+    completion_reason: str | None = None
 
 
 class MinutesModelClient(Protocol):
@@ -175,7 +176,12 @@ class BoundedMinutesExtractor:
         )
         if not result.complete:
             raise MinutesIncompleteResponseError(
-                "The summary model stopped before completing the minutes response."
+                "The summary model stopped before completing the minutes response "
+                f"(reason={result.completion_reason!r}, "
+                f"prompt_tokens={result.prompt_tokens!r}, "
+                f"generated_tokens={result.generated_tokens!r}, "
+                f"context_size={self._budget.context_size}, "
+                f"max_generated_tokens={self._budget.max_generated_tokens})."
             )
         if result.prompt_tokens is None or result.generated_tokens is None:
             raise MinutesTokenAccountingError(
