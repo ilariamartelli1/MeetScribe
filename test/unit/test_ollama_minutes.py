@@ -35,7 +35,7 @@ def test_adapter_translates_request_and_completion(reason: str, complete: bool) 
 
 def test_pinned_extraction_budget_matches_manifest() -> None:
     budget = ollama_minutes.load_extraction_budget()
-    assert budget.context_size == 16384
+    assert budget.context_size == 26112
     assert budget.max_generated_tokens == 4096
     assert budget.chat_template_reserve_tokens == 128
 

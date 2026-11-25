@@ -15,7 +15,7 @@ ollama_image_digest = "sha256:ccc42bcd3d5fcf7ab0d532b300382154e1a4da56fc666bdb31
 ollama_linux_amd64_digest = "sha256:5e5802d3c018ecdee7c7dff32a7e3b10ca9a2c4b3a461392cff97c313c2af0fc"
 
 [smoke]
-context_size = 16384
+context_size = 26112
 max_generated_tokens = 16
 temperature = 0.0
 keep_alive = "5m"
@@ -23,7 +23,7 @@ think = false
 response_format = "json"
 
 [extraction]
-context_size = 16384
+context_size = 26112
 max_generated_tokens = 4096
 chat_template_reserve_tokens = 128
 temperature = 0.0

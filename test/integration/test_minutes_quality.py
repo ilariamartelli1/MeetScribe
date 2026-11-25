@@ -220,7 +220,7 @@ def test_real_audio_to_minutes_quality_report() -> None:
             assert isinstance(entry.get("minutes"), dict), entry
             metrics = entry.get("extraction_metrics")
             assert isinstance(metrics, dict), entry
-            assert metrics.get("context_size") == 16384, entry
+            assert metrics.get("context_size") == 26112, entry
             assert isinstance(entry.get("reference_script"), str), entry
             if entry.get("case") == "known-asr-error":
                 _assert_known_asr_error_quality(entry)

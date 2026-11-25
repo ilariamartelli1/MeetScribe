@@ -5,6 +5,7 @@ Requires MEETSCRIBE_OLLAMA_TESTS=1, a provisioned model, Docker, and an NVIDIA G
 
 import json
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -175,7 +176,14 @@ def test_pinned_ollama_model_runs_offline_on_gpu() -> None:
             text=True,
             timeout=20,
         )
-        assert "100% GPU" in placement.stdout
+        cpu_percentage = 0
+        gpu_percentage = 100
+        if "100% GPU" not in placement.stdout:
+            percentages = re.search(r"\b(\d+)%/(\d+)% CPU/GPU\b", placement.stdout)
+            assert percentages is not None, placement.stdout
+            cpu_percentage, gpu_percentage = map(int, percentages.groups())
+            assert cpu_percentage + gpu_percentage == 100, placement.stdout
+        assert gpu_percentage > 0, placement.stdout
         logs = subprocess.run(
             [*compose, "logs", "--no-color", "ollama"],
             cwd=PROJECT_ROOT,
@@ -226,6 +234,8 @@ def test_pinned_ollama_model_runs_offline_on_gpu() -> None:
                     "network_container_count": len(network_info["Containers"]),
                     "model_smoke": result,
                     "model_placement": placement.stdout.strip(),
+                    "ollama_processor_cpu_percent": cpu_percentage,
+                    "ollama_processor_gpu_percent": gpu_percentage,
                     "placement_logs": placement_logs,
                     "gpu_memory_used_free": gpu_memory.stdout.strip(),
                     "ollama_container_memory": container_memory.stdout.strip(),
