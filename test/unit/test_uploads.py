@@ -17,7 +17,9 @@ from app.main import app
 from app.core.transcription_jobs import TranscriptionCoordinator
 from app.infrastructure.uploads import (
     MAX_AUDIO_BYTES,
+    MAX_DURATION_SECONDS,
     MAX_REQUEST_BYTES,
+    UPLOAD_TIMEOUT_SECONDS,
     UploadError,
     UploadParser,
     ValidationWorkerStuck,
@@ -126,8 +128,8 @@ def test_mp3_upload_is_accepted(client: TestClient) -> None:
         ("high-rate.wav", wav_bytes(sample_rate=96000), "sample rate"),
         pytest.param(
             "long.wav",
-            wav_bytes(samples=300 * 8000 + 1),
-            "five minutes",
+            wav_bytes(samples=8001),
+            "three hours",
             id="too-long",
         ),
     ],
@@ -146,8 +148,15 @@ def test_mp3_upload_is_accepted(client: TestClient) -> None:
     ],
 )
 def test_invalid_audio_is_rejected_before_start(
-    client: TestClient, tmp_path: Path, name: str, audio: bytes, message: str
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    audio: bytes,
+    message: str,
 ) -> None:
+    if name == "long.wav":
+        monkeypatch.setattr("app.infrastructure.uploads.MAX_DURATION_SECONDS", 1)
     response = client.post(
         "/api/v1/jobs", headers=HEADERS, files={"file": (name, audio)}
     )
@@ -482,25 +491,30 @@ def test_multipart_abuse_is_rejected(client: TestClient) -> None:
 
 @pytest.mark.parametrize("extra", [0, 1])
 def test_exact_audio_size_limit(tmp_path: Path, extra: int) -> None:
-    parser = UploadParser("multipart/form-data; boundary=x", tmp_path)
-    parser._file.close()
-    parser._file = Mock()
-    try:
-        parser.write(
-            b'--x\r\nContent-Disposition: form-data; name="file"; filename="a.wav"\r\n\r\n'
-        )
-        block = b"\0" * 1_000_000
-        for _ in range(100):
-            parser.write(block)
-        assert MAX_AUDIO_BYTES == 100_000_000
-        if extra:
-            with pytest.raises(UploadError, match="100 MB"):
-                parser.write(b"\0\r\n--x--\r\n")
-        else:
-            parser.write(b"\r\n--x--\r\n")
-            assert parser.finish()[3] == "wav"
-    finally:
-        parser.discard()
+    with patch("app.infrastructure.uploads.MAX_AUDIO_BYTES", 10):
+        parser = UploadParser("multipart/form-data; boundary=x", tmp_path)
+        parser._file.close()
+        parser._file = Mock()
+        try:
+            parser.write(
+                b'--x\r\nContent-Disposition: form-data; name="file"; filename="a.wav"\r\n\r\n'
+            )
+            parser.write(b"\0" * 10)
+            if extra:
+                with pytest.raises(UploadError, match="10 GB"):
+                    parser.write(b"\0\r\n--x--\r\n")
+            else:
+                parser.write(b"\r\n--x--\r\n")
+                assert parser.finish()[3] == "wav"
+        finally:
+            parser.discard()
+
+
+def test_configured_upload_limits() -> None:
+    assert MAX_AUDIO_BYTES == 10_000_000_000
+    assert MAX_REQUEST_BYTES == 10_000_065_536
+    assert MAX_DURATION_SECONDS == 3 * 60 * 60
+    assert UPLOAD_TIMEOUT_SECONDS == 60 * 60
 
 
 def test_concurrent_uploads_are_bounded_and_status_remains_responsive(

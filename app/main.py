@@ -51,6 +51,7 @@ from app.core.speaker_alignment import AttributedTranscript
 from app.core.transcription_worker import SpeakerAttributedJob
 from app.infrastructure.uploads import (
     MAX_REQUEST_BYTES,
+    UPLOAD_TIMEOUT_SECONDS,
     UploadError,
     UploadParser,
     ValidationWorkerStuck,
@@ -270,7 +271,7 @@ async def upload_job(request: Request) -> JSONResponse:
                 request.headers.get("content-type", ""), request.app.state.upload_dir
             )
             received = 0
-            async with asyncio.timeout(120):
+            async with asyncio.timeout(UPLOAD_TIMEOUT_SECONDS):
                 async for chunk in request.stream():
                     received += len(chunk)
                     if received > length or received > MAX_REQUEST_BYTES:

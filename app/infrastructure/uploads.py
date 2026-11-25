@@ -16,13 +16,14 @@ from python_multipart.multipart import parse_options_header
 
 from app.core.asr_contract import Language
 
-MAX_AUDIO_BYTES = 100_000_000
+MAX_AUDIO_BYTES = 10_000_000_000
 MAX_REQUEST_BYTES = MAX_AUDIO_BYTES + 64 * 1024
-MAX_DURATION_SECONDS = 300
+MAX_DURATION_SECONDS = 3 * 60 * 60
 MAX_SAMPLE_RATE = 48000
 MAX_HEADER_BYTES = 8192
 MAX_FIELD_BYTES = 1024
-DECODE_TIMEOUT_SECONDS = 30
+UPLOAD_TIMEOUT_SECONDS = 60 * 60
+DECODE_TIMEOUT_SECONDS = 10 * 60
 logger = logging.getLogger(__name__)
 
 
@@ -142,7 +143,7 @@ class UploadParser:
         if self._field == b"file":
             self._file_bytes += len(part)
             if self._file_bytes > MAX_AUDIO_BYTES:
-                raise UploadError("Audio exceeds 100 MB.", 413)
+                raise UploadError("Audio exceeds 10 GB.", 413)
             self._file.write(part)
         else:
             if len(self._field_data) + len(part) > MAX_FIELD_BYTES:
@@ -194,7 +195,12 @@ class UploadParser:
         self.path.unlink(missing_ok=True)
 
 
-def _validate_in_child(path: Path, expected_format: str, sender: Connection) -> None:
+def _validate_in_child(
+    path: Path,
+    expected_format: str,
+    max_duration_seconds: int,
+    sender: Connection,
+) -> None:
     try:
         try:
             with av.open(str(path), mode="r") as container:
@@ -239,8 +245,8 @@ def _validate_in_child(path: Path, expected_format: str, sender: Connection) -> 
                         raise UploadError("Changing audio sample rate is unsupported.")
                     sample_rate = frame.sample_rate
                     samples += frame.samples
-                    if samples > MAX_DURATION_SECONDS * sample_rate:
-                        raise UploadError("Audio exceeds five minutes.")
+                    if samples > max_duration_seconds * sample_rate:
+                        raise UploadError("Audio exceeds three hours.")
                 if not samples:
                     raise UploadError("Audio contains no decodable samples.")
             sender.send(None)
@@ -265,7 +271,8 @@ def validate_audio(path: Path, expected_format: str) -> None:
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     process = context.Process(
-        target=_validate_in_child, args=(path, expected_format, sender)
+        target=_validate_in_child,
+        args=(path, expected_format, MAX_DURATION_SECONDS, sender),
     )
     try:
         process.start()
