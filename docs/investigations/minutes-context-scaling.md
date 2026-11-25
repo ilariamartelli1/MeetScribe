@@ -12,14 +12,14 @@ text, then sends the complete transcript in one request. It does not truncate
 or chunk the transcript. The output schema constrains the response fields; it
 does not hide input segments. JSON formatting adds some prompt overhead.
 
-The current context budget is **16,384 tokens**, with a maximum of **4,096
+The current context budget is **26,112 tokens**, with a maximum of **4,096
 generated tokens** and a **128-token** chat-template reserve. The preflight
 prompt bound is its UTF-8 byte length plus the template reserve; that bound and
-the generation reserve must fit within 16,384. This is a conservative estimate,
+the generation reserve must fit within 26,112. This is a conservative estimate,
 not tokenizer output. The full Pydantic response schema is sent separately as
-Ollama's structured-output format. The latest English MP3 run reported a
-10,199-token prompt upper bound plus 4,096 reserved output tokens, for a
-conservative total of 14,295.
+Ollama's structured-output format. The 10-minute AMI run that passed at this
+setting reported a 21,761-token prompt upper bound plus 4,096 reserved output
+tokens, for a conservative total of 25,857.
 
 If the bound exceeds the context size, extraction fails before model
 inference with `MinutesContextBudgetError`. No partial draft or silent
@@ -38,11 +38,18 @@ segments to make a request pass.
 The limit also bounds inference cost. With other settings fixed, a larger
 context generally needs a larger KV cache, increasing GPU or host memory use
 and potentially latency. The exact cost depends on the model, quantization and
-runtime. **16,384 tokens is not a measured maximum imposed by the RTX 4050's
-6 GB VRAM**: no context-capacity sweep was performed. The latest English MP3
-run sampled a 4,710 MiB GPU peak out of 6,141 MiB, but a single sampled run
-does not prove a safe hardware boundary or a necessary minimum. CPU and future
-VM deployments also need their own resource measurements.
+runtime. **26,112 tokens is not an all-GPU capacity guarantee for the RTX
+4050's 6 GB VRAM.** An Ollama smoke at this context placed 75% of model layers
+on the GPU and 25% on the CPU according to `ollama ps`; the load log reports
+26/37 layers on GPU, a 1,122 MiB CPU KV buffer and a 2,550 MiB CUDA KV buffer.
+The smoke sampled 4,612 MiB GPU use (1,160 MiB free). At 28,672 the reported
+split was 27% CPU / 73% GPU, and at 32,768 it was 32% CPU / 68% GPU. Each
+smoke produced a response. The original smoke test required 100% GPU and
+therefore failed at these larger contexts; it now verifies GPU participation
+and records the CPU/GPU split. The 10-minute app run at 26,112 sampled a
+4,630 MiB GPU peak out of 6,141 MiB. These are sampled measurements; brief
+spikes may be missed. CPU and future VM deployments need their own resource
+measurements.
 
 In the first 3.7 run at the former 4,096-token setting, the **11,322-token**
 figure was a preflight upper bound, and inference never started. It does
@@ -81,14 +88,39 @@ resource spikes may be missed. The MP3 test verifies a complete response and
 export shape, not semantic minutes quality. Italian and known-ASR-error cases
 were not run with the current settings.
 
-This does not establish a fixed maximum meeting duration. Transcript token
+On **2026-11-23**, two AMI English meetings were run at the then-current
+16,384-token context. The **644.288-second ES2010a** recording transcribed in
+**92.231 s** (**92.909 s** total); its conservative total bound was
+**25,857 tokens**, so minutes were rejected before model inference. The
+**3,451.883-second EN2001b** recording transcribed in **418.042 s**
+(**419.244 s** total); its bound was **108,378 tokens**, also rejected before
+inference. Both runs sampled **2,294 MiB** GPU use out of 6,141 MiB, from a
+42 MiB baseline. These figures are conservative prompt-plus-output bounds,
+not actual model token counts; no summary inference or GPU use occurred on
+either run.
+
+On **2026-11-24**, ES2010a was rerun with a **26,112-token** context. Upload
+and validation took **0.648 s**, transcription and diarization **91.223 s**,
+and minutes generation **145.463 s**, for **237.378 s** total. The preflight
+bound was **21,761 prompt tokens + 4,096 output tokens = 25,857**, leaving
+255 tokens of conservative budget headroom. Actual runtime counts were
+**7,549 prompt** and **1,302 generated tokens**. The complete draft succeeded;
+this run checked capacity and completion, not semantic minutes quality.
+Sampled GPU use peaked at **4,630 MiB** from the same **42 MiB** baseline.
+
+These runs do not establish a fixed maximum meeting duration. Transcript token
 count varies with language, speaking rate, vocabulary and transcript content;
 segment metadata and prompt instructions also consume budget. A successful
 upload or transcription therefore does not guarantee that minutes extraction
-fits. The current five-minute/100 MB upload limit is separate from the
-summary-context limit. The English fixture failed at the former 4,096-token
-setting, the WAV passed at 12,288 tokens and the MP3 passed at 16,384 tokens;
-none of these results establishes a universal five-minute capacity.
+fits. The three-hour/10 GB upload ceiling is separate from the summary-context
+limit. The 58-minute AMI transcript required a 108,378-token conservative
+bound, already above the model's tested context on this hardware. A
+straight-line extrapolation of the two AMI bounds to three hours is roughly
+339,000–433,000 tokens, above Qwen3 4B's advertised 262,144-token context and
+not a hardware-safe estimate. The current 26,112-token setting fits the tested
+10-minute AMI recording only; it does not provide three-hour minutes support.
+Coverage-preserving chunk-and-merge or another multi-pass strategy remains
+necessary to pursue that goal.
 
 ## Other failure points
 

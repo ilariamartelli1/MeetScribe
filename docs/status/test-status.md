@@ -1,8 +1,9 @@
 # Test status
 
-Snapshot: 2026-11-23, based on repository commit `d92579f`. This document
-records observed results, not a live dashboard. Results apply to the stated
-environment and test inputs; reruns may differ.
+Snapshot: 2026-11-24. Baseline repository commit: `d92579f`; results from the
+current worktree are identified in their rows. This document records observed
+results, not a live dashboard. Results apply to the stated environment and
+test inputs; reruns may differ.
 
 ## CLion test configurations
 
@@ -17,8 +18,9 @@ means no matching result or duration is documented.
 | Name | Test/setup | Reported result | Reported runtime |
 |---|---|---|---:|
 | Integration - GPU Handoff | [`test/integration/test_gpu_handoff.py`](../../test/integration/test_gpu_handoff.py)::`test_real_gpu_handoff_serializes_and_releases_all_models` | **PASS** ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) | 86.73 s ([Slice 3.2](../reports/sprint-3-slice-3.2.md)) |
-| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` (supports `MEETSCRIBE_MINUTES_QUALITY_CASES`) | English MP3-only **PASS** (16,384 context / 4,096 output; sampled GPU peak 4,710/6,141 MiB); earlier English WAV pass at 12,288/1,024; Italian and known-ASR-error cases not rerun | 203.09 s (MP3); 126.09 s (WAV); 322.69 s (full, historical) |
-| Integration - Ollama Model | [`test/integration/test_ollama_model.py`](../../test/integration/test_ollama_model.py)::`test_pinned_ollama_model_runs_offline_on_gpu` | **PASS** ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) | 54.09 s ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) |
+| Integration - Minutes Quality | [`test/integration/test_minutes_quality.py`](../../test/integration/test_minutes_quality.py)::`test_real_audio_to_minutes_quality_report` (supports `MEETSCRIBE_MINUTES_QUALITY_CASES`) | Historical English MP3-only **PASS** (16,384 context / 4,096 output; sampled GPU peak 4,710/6,141 MiB); earlier English WAV pass at 12,288/1,024; Italian and known-ASR-error cases not rerun | 203.09 s (MP3); 126.09 s (WAV); 322.69 s (full, historical) |
+| Manual - AMI Long-Audio Capacity | Local AMI benchmark; full metrics in [minutes context scaling](../investigations/minutes-context-scaling.md) | 10m44s ES2010a **transcription + minutes PASS** at 26,112; 57m32s EN2001b **transcription PASS**, minutes preflight rejected at 16,384. Not a semantic-quality test or three-hour capacity proof. | 237.38 s (ES2010a at 26,112); 92.91 s and 419.24 s (earlier runs at 16,384) |
+| Integration - Ollama Model | [`test/integration/test_ollama_model.py`](../../test/integration/test_ollama_model.py)::`test_pinned_ollama_model_runs_offline_on_gpu` | **PASS** at 26,112 context; Ollama placed 75% on GPU / 25% CPU (26/37 layers on GPU). Historical all-GPU result: [Slice 3.1](../reports/sprint-3-slice-3.1.md) | 59.65 s (26,112); 54.09 s ([Slice 3.1](../reports/sprint-3-slice-3.1.md)) |
 | Integration - Browser - Fake Inference | [`test/integration/test_browser_flow.py`](../../test/integration/test_browser_flow.py):<br>`test_real_api_upload_summary_edit_review_and_direct_transcript_download`;<br>`test_regeneration_requires_confirmation_before_replacing_saved_edits`;<br>`test_stale_minutes_are_read_only_until_regenerated`;<br>`test_capacity_confirmation_precedes_replacement` (2 cases);<br>`test_cancel_running_transcription`;<br>`test_cancel_running_minutes_generation`;<br>`test_real_api_cancels_running_fake_transcription`;<br>`test_cancel_error_remains_visible_and_cancel_can_be_retried`;<br>`test_job_failure_is_visible_as_text` | Updated direct-download case **passed**; full configuration last ran in Slice 3.7 (10 passed, using the earlier separate-page case) | Updated case: 4.88 s; Slice 3.6: 17.95 s ([report](../reports/sprint-3-slice-3.6.md)); Slice 3.7 runtime not reported |
 | Integration - CPU - ASR and Diarization Feasibility (long) | [`test/integration/test_diarization_feasibility.py`](../../test/integration/test_diarization_feasibility.py)::`test_offline_asr_then_diarization[cpu-None]`; `test_offline_asr_then_diarization[cpu-mp3]` | **PASS**, both CPU cases (2026-11-21 all-opt-in run) | 60.07 s + 24.12 s per case; config wall time not reported |
 | Integration - CPU - Text Normalization (long) | [`test/integration/test_wetextprocessing.py`](../../test/integration/test_wetextprocessing.py)::`test_english_and_italian_rule_data` | **PASS** (2026-11-21 all-opt-in run) | 39.79 s |
@@ -186,7 +188,7 @@ known-ASR-error recordings were not reached; there are no real extraction-token
 counts or resource report from that run. Human correction time was not
 measured. Fail-fast behavior remains in place for transcripts that exceed the
 configured context; no transcript chunking or model change was introduced. The
-five-minute audio limit does not guarantee that every transcript can be
+configured upload limit does not guarantee that every transcript can be
 summarized; see the
 [slice 3.7 report](../reports/sprint-3-slice-3.7.md).
 
@@ -529,8 +531,8 @@ during minutes generation and **2,294 MiB** during transcription, out of
 **6,141 MiB** total; no GPU error occurred. This validates generation and
 export shape for this fixture, not semantic quality.
 
-**English MP3 minutes rerun:** The selected `english-checkpoint` integration
-test now uses `meeting-en.mp3` and passed with a 16,384-token context and
+**Historical English MP3 minutes rerun:** The selected `english-checkpoint`
+integration test uses `meeting-en.mp3` and passed with a 16,384-token context and
 4,096-token output limit in **203.09 seconds**. The 297.305-second recording
 used a **10,199-token prompt upper bound**, **2,862 runtime prompt tokens** and
 **1,023 generated tokens**; minutes generation took **120.283 seconds**.

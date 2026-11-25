@@ -15,11 +15,11 @@ for current limits and implementation slices.
 - When a storage quota or reserved-free-space threshold prevents a new
   upload, explain the problem and prompt the user to delete existing
   meetings; do not silently delete unexpired meetings to make room.
-- Two-hour meetings are a longer-term goal. The current app accepts at most
-  five minutes / 100 MB, and the planned local-MVP milestone is 30 minutes /
-  500 MB per recording. Neither has established two-hour support. A longer
-  limit must be measured and chosen; removing the 30-minute limit does not
-  imply unlimited uploads.
+- The app is configured to accept at most three hours / 10 GB per recording.
+  This user-requested test ceiling is not a measured capacity guarantee; the
+  app has not demonstrated three-hour inference or sufficient free space for a
+  10 GB upload. The earlier 30-minute / 500 MB local-MVP estimate is superseded
+  as a configured limit, not as evidence of tested capacity.
 
 ## Current temporary behavior
 

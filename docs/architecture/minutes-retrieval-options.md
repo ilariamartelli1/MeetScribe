@@ -18,7 +18,7 @@ resource requirements for that VM.
 
 The current minutes prompt contains every attributed transcript segment,
 including its segment ID, timestamps, speaker ID and text. Its configured
-context is 16,384 tokens, with up to 4,096 generated tokens. In the first
+context is 26,112 tokens, with up to 4,096 generated tokens. In the first
 approved slice 3.7 run, a 297.305-second English recording had a conservative
 total context estimate of 11,322 tokens, so `MinutesContextBudgetError`
 stopped extraction before the model ran at the then-configured 4,096-token
@@ -65,9 +65,10 @@ latency and memory use. It does not solve transcripts larger than the chosen
 limit.
 
 **Fit:** Keep as the quality baseline for recordings that fit. The current
-16,384-token setting completed the English MP3 checkpoint, but does not
-guarantee that every five-minute transcript fits or that its minutes are
-accurate.
+26,112-token setting completed the selected 10-minute AMI recording, but the
+58-minute AMI transcript still exceeds it. Neither this run nor the historic
+16,384-token English MP3 result guarantees longer transcripts fit or minutes
+are accurate; see the [context-scaling report](../investigations/minutes-context-scaling.md).
 
 ### 2. Chronological, overlapping chunk-and-merge
 

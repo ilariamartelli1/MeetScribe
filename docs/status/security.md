@@ -54,8 +54,10 @@ network layer and verify them in that deployment.
 4. The app validates the generated draft before making it available for
    editing or export.
 
-Uploads are limited to 100 MB and five minutes, streamed to a temporary app
+Uploads are limited to 10 GB and three hours, streamed to a temporary app
 directory, validated, and removed after processing, cancellation or failure.
+The app does not reserve disk space before upload; the configured size ceiling
+does not guarantee that the host or container has enough temporary storage.
 Transcripts and minutes are held in memory temporarily; they are not restored
 after restart. Persistent meetings, saved audio, accounts and the planned
 retention/deletion workflow are not implemented. A downloaded transcript or

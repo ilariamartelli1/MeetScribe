@@ -215,15 +215,16 @@ transcripts, generated drafts, extraction-token counts, stage durations and
 sampled resources when all cases complete. The initial real run stopped before
 inference because the English checkpoint's 11,322-token conservative bound
 exceeded the then-configured 4,096-token context. An earlier English WAV run
-passed with a 12,288-token context and 1,024-token output limit. The current
-English-only case uses `meeting-en.mp3` and passed with a 16,384-token context
-and 4,096-token output limit: the 297.305-second recording used a 10,199-token
-prompt upper bound, 2,862 runtime prompt tokens and 1,023 generated tokens;
-minutes generation took 120.283 seconds and the full test 203.09 seconds.
+passed with a 12,288-token context and 1,024-token output limit. The
+English-only case uses `meeting-en.mp3`; its earlier run passed with a
+16,384-token context and 4,096-token output limit: the 297.305-second
+recording used a 10,199-token prompt upper bound, 2,862 runtime prompt tokens
+and 1,023 generated tokens; minutes generation took 120.283 seconds and the
+full test 203.09 seconds.
 Sampled GPU use peaked at 4,710 MiB of 6,141 MiB, with no GPU error. This
 verifies a complete draft for this fixture, not semantic minutes quality or
-universal five-minute capacity. The Italian and known-ASR-error cases were not
-included, so slice 3.7 remains incomplete. Over-budget transcripts still fail
+the configured three-hour/10 GB upload capacity. The Italian and known-ASR-error
+cases were not included, so slice 3.7 remains incomplete. Over-budget transcripts still fail
 without truncation or partial drafts. This is not an ASR/minutes-accuracy
 threshold or a VM-capacity test; see [minutes context
 scaling and limitations](docs/investigations/minutes-context-scaling.md) for current evidence
@@ -244,11 +245,13 @@ Ollama profile with
 `docker compose --profile summary up --build -d app ollama`; without that
 optional profile, the browser provides transcription only. Open
 `http://127.0.0.1:8000/` in a browser. Select a mono or stereo WAV or MP3 (up
-to five minutes and 100 MB), choose its language, and, with the summary profile
+to three hours and 10 GB), choose its language, and, with the summary profile
 running, create a draft summary. Minutes generation requires the complete
-transcript to fit the configured 16,384-token context and 4,096-token output
+transcript to fit the configured 26,112-token context and 4,096-token output
 budget; an over-budget transcript fails without a partial draft, even when its
-audio upload is within the current limit.
+audio upload is within the current limit. This context was tested on one
+10-minute AMI recording and does not guarantee minutes for three-hour audio;
+see [context-scaling results](docs/investigations/minutes-context-scaling.md).
 Edit the summary, topics, decisions and action items, then save before marking
 the current revision reviewed or downloading TXT/JSON exports. TXT contains
 only minutes; JSON v1 includes the source transcript segments and speaker IDs.
@@ -425,8 +428,8 @@ MEETSCRIBE_ASR_TESTS=1 uv run --locked python -m pytest -q -s \
 These are test-runner device selections, not diarization settings exposed by
 the application. The earlier CPU short-input run observed
 substantial system swap use. A separate nearly five-minute synthetic MP3
-completed in both CPU and GPU modes; adequate desktop headroom and 30-minute
-capacity remain unverified. The test does not measure speaker-label accuracy. See
+completed in both CPU and GPU modes; capacity for the configured three-hour
+limit remains unverified. The test does not measure speaker-label accuracy. See
 [the feasibility report](docs/reports/sprint-2-diarization-feasibility.md) for results,
 attribution and limitations. ASR paths can be overridden with
 `MEETSCRIBE_ASR_MODEL_DIR` and `MEETSCRIBE_ASR_MODEL_MANIFEST`; diarization can be
@@ -513,7 +516,7 @@ Call `cancel(job_id)` to stop a running worker. Its state changes from `cancelli
 
 The app's coordinator exposes `POST /api/v1/jobs`, `GET /api/v1/jobs/{job_id}`, and `POST /api/v1/jobs/{job_id}/cancel`. POST requests require an `Origin` matching the localhost request; job endpoints reject non-local Host headers and return `Cache-Control: no-store`. Unknown jobs return 404; already-succeeded or failed jobs return 409 on cancellation. The app creates its coordinator at startup and stops it at shutdown; its device is selected by `MEETSCRIBE_DEVICE` (`cuda` by default, or explicitly `cpu`). The coordinator is synchronous and must not be called directly from an async event loop.
 
-The upload is multipart form data with one `file`, optional `language` (`en` or `it`), and optional `replace_oldest_job_id`. It requires `Content-Length`, limits audio to 100,000,000 bytes and five minutes, and allows one upload at a time. The request limit is 100,065,536 bytes; multipart headers, parts and fields are also bounded. A separate decoder process has a 30-second limit. The filename must end in `.wav` or `.mp3` and match the actual format. WAV (PCM) and MP3 must contain one mono or stereo audio stream at 8–48 kHz; stereo is mixed to mono for transcription and diarization. Mixing loses channel separation and can cancel opposite-phase speech. The original upload is not modified and is deleted after processing, cancellation or failure. Unsupported, empty, corrupt or misleading files are rejected before transcription. Uploads time out after 120 seconds.
+The upload is multipart form data with one `file`, optional `language` (`en` or `it`), and optional `replace_oldest_job_id`. It requires `Content-Length`, limits audio to 10,000,000,000 bytes (10 GB) and three hours, and allows one upload at a time. The request limit is 10,000,065,536 bytes; multipart headers, parts and fields are also bounded. A separate decoder process has a 600-second limit. The filename must end in `.wav` or `.mp3` and match the actual format. WAV (PCM) and MP3 must contain one mono or stereo audio stream at 8–48 kHz; stereo is mixed to mono for transcription and diarization. Mixing loses channel separation and can cancel opposite-phase speech. The original upload is not modified and is deleted after processing, cancellation or failure. Unsupported, empty, corrupt or misleading files are rejected before transcription. Uploads time out after 3,600 seconds.
 
 Multipart parsing uses pinned [python-multipart 0.0.32](https://github.com/Kludex/python-multipart), licensed under Apache-2.0.
 
